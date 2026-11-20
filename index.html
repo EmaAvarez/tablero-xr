@@ -14,14 +14,14 @@
   #xr{width:100%;padding:12px;border-radius:10px;border:0;background:#0078d4;color:#ffffff;font-weight:700;font-size:15px;cursor:pointer}
   #xr:disabled{background:#3b3a39;color:#a19f9d;cursor:not-allowed}
   #msg{font-size:12px;color:#ffb900;margin-top:8px;line-height:1.45}
-  .legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;font-size:12px;color:#d2d0ce}
+  .legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;font-size:12px;color:#ffffff}
   .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
   #detail{top:16px;right:16px;width:390px;max-height:calc(100% - 32px);overflow:auto}
   #detail h2{font-size:16px;margin:0 0 2px}
   .meta{font-size:12px;color:#c8c6c4;margin-bottom:10px;line-height:1.45}
   .chk{border-top:1px solid rgba(255,255,255,.08);padding:8px 0;font-size:13px;line-height:1.4}
   .chk b{font-weight:600}
-  .tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:6px;margin-left:6px;background:#3b3a39;color:#d2d0ce}
+  .tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:6px;margin-left:6px;background:#3b3a39;color:#ffffff}
   .fix{color:#6cb8f6;font-size:12px;margin-top:3px}
   .hint{font-size:12px;color:#c8c6c4;line-height:1.45}
   .azbtn{display:inline-block;margin-top:12px;padding:7px 10px;border-radius:8px;border:1px dashed #3b5878;color:#a19f9d;font-size:12px}
@@ -31,6 +31,15 @@
   #tools button.on{background:#2899f5;color:#11100f;border-color:#2899f5}
   #pages button{flex:1;padding:7px 4px;border-radius:8px;border:1px solid #2b88d8;background:#252423;color:#e1dfdd;font-size:12px;font-weight:600;cursor:pointer}
   #pages button.on{background:#0078d4;color:#fff;border-color:#0078d4}
+  .palbtn{padding:3px 8px;border-radius:7px;border:1px solid #2b88d8;background:#252423;color:#e1dfdd;font-size:12px;font-weight:600;cursor:pointer}
+  #paleta{display:none;top:50%;left:50%;transform:translate(-50%,-50%);width:min(560px,92vw);max-height:86vh;overflow:auto;z-index:5}
+  #paleta h2{font-size:16px;margin:0 0 10px}
+  #paleta .row{display:flex;gap:8px;flex-wrap:wrap}
+  #paleta .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px 12px;margin-top:6px;font-size:13px;color:#e1dfdd}
+  #paleta label{display:flex;align-items:center;gap:8px}
+  #paleta input[type=color]{width:32px;height:24px;border:0;background:none;padding:0;cursor:pointer}
+  #paleta button{padding:7px 12px;border-radius:8px;border:1px solid #2b88d8;background:#252423;color:#e1dfdd;font-size:13px;font-weight:600;cursor:pointer}
+  #paleta button.primary{background:#0078d4;border-color:#0078d4;color:#fff}
   @media (max-width:860px){#hud{width:auto;right:16px}#detail{top:auto;bottom:16px;left:16px;right:16px;width:auto;max-height:42%}}
 </style>
 <script type="importmap">
@@ -45,7 +54,7 @@
 
 <div id="hud" class="card">
   <h1>Mapa de red holográfico · Defender for Cloud</h1>
-  <div class="sub">Prototipo v0.7.2 · <b>datos de ejemplo ficticios</b>. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
+  <div class="sub">Prototipo v0.8 · <b>datos de ejemplo ficticios</b>. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
   <button id="cat" style="width:100%;padding:9px;border-radius:10px;border:1px solid #2899f5;background:transparent;color:#6cb8f6;font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px">Ver catálogo de modelos 3D</button>
   <div id="pages" style="display:none;gap:6px;margin-bottom:8px"><button data-p="res">Recursos</button><button data-p="zon">Zonas</button><button data-p="via">Vías y controles</button></div>
   <button id="xr" disabled>Comprobando realidad mixta…</button>
@@ -55,10 +64,11 @@
     <span><span class="dot" style="background:#f7630c"></span>Fallo media</span>
     <span><span class="dot" style="background:#ffb900"></span>Fallo baja</span>
     <span><span class="dot" style="background:#6bb700"></span>Correcto</span>
-    <span><span class="dot" style="background:#d2d0ce"></span>Externo</span>
+    <span><span class="dot" style="background:#ffffff"></span>Externo</span>
   </div>
 </div>
 
+<div id="paleta" class="card"></div>
 <div id="tools" class="card" style="display:none">
   <button data-a="edit">✋ Modo maqueta</button>
   <button data-a="pminus" title="Achicar la pieza seleccionada (tecla −)">Pieza −</button>
@@ -215,7 +225,7 @@ const LINKS = [
 
 /* ===================== utilidades ===================== */
 const SEV = { Alta: 3, Media: 2, Baja: 1 };
-const COL = { Alta: '#d13438', Media: '#f7630c', Baja: '#ffb900', ok: '#6bb700', ext: '#d2d0ce' };
+const COL = { Alta: '#d13438', Media: '#f7630c', Baja: '#ffb900', ok: '#6bb700', ext: '#ffffff' };
 function worstSev(item){ let w = null; for (const c of item.checks) if (!c.ok && (!w || SEV[c.s] > SEV[w])) w = c.s; return w; }
 function statusColor(item){ if (!item.checks.length) return COL.ext; const w = worstSev(item); return w ? COL[w] : COL.ok; }
 function fails(item){ return item.checks.filter(c => !c.ok).length; }
@@ -307,7 +317,7 @@ for (const zn of ZONES){
     }
   } else {
     flatPlate(x0, x1, z0, z1, 0.001, zn.kind === 'paas' ? 0x2a1f4a : 0x2d2c2b, 0.6, zn.kind === 'paas' ? 0x8661c5 : 0x8a8886, true);
-    placeFlatLabel(zn.name, x0 + 0.008, z1 - 0.014, 0.018, { bg: null, color: zn.kind === 'paas' ? '#b4a0e0' : '#d2d0ce', size: 40 });
+    placeFlatLabel(zn.name, x0 + 0.008, z1 - 0.014, 0.018, { bg: null, color: zn.kind === 'paas' ? '#b4a0e0' : '#ffffff', size: 40 });
   }
 }
 
@@ -347,6 +357,51 @@ const textTex = (txt, fg, bg) => canvasTex('t' + txt + fg + bg, 128, 80, (x, w, 
 
 /* paleta inspirada en Azure / Microsoft Fluent */
 const TYPE_COL = { vm: 0x0078d4, sqlserver: 0x005ba1, sqldb: 0x1490df, storage: 0x00a2ad, keyvault: 0x8a8886, webapp: 0x2899f5, vpngw: 0x773adc, nsg: 0x005ba1, pip: 0x8661c5, pe: 0x00a2ad, warn: 0x8a8886, subscription: 0x0078d4, internet: 0xf3f2f1, onprem: 0xa19f9d, vmss: 0x0078d4, aks: 0x326ce5, functions: 0x2899f5, lb: 0x0078d4, natgw: 0x773adc, firewall: 0x8a8886, appgw: 0x005ba1, bastion: 0x5c2d91, cosmos: 0x1490df, loganalytics: 0x0078d4 };
+/* ===================== paleta personalizable ===================== */
+const DEFAULT_COL = { ...COL }, DEFAULT_TYPE = { ...TYPE_COL };
+const PKEY = 'tablero-paleta-v1';
+try {
+  const pal = JSON.parse(localStorage.getItem(PKEY) || 'null');
+  if (pal){ Object.assign(COL, pal.col || {}); for (const [k, v] of Object.entries(pal.type || {})) TYPE_COL[k] = parseInt(String(v).replace('#', ''), 16); }
+} catch (e) {}
+const PRESETS = {
+  'Microsoft': { col: { ...DEFAULT_COL } },
+  'Alto contraste': { col: { Alta: '#ff1a1a', Media: '#ff8c00', Baja: '#ffff00', ok: '#00e64d', ext: '#ffffff' } },
+  'Daltonismo': { col: { Alta: '#d55e00', Media: '#e69f00', Baja: '#f0e442', ok: '#009e73', ext: '#ffffff' } }
+};
+const STATUS_NAMES = [['Alta', 'Fallo alta'], ['Media', 'Fallo media'], ['Baja', 'Fallo baja'], ['ok', 'Correcto'], ['ext', 'Externo']];
+const TYPE_NAMES = [['vm', 'Máquina virtual'], ['vmss', 'VMSS'], ['aks', 'AKS'], ['functions', 'Functions'], ['webapp', 'App Service'], ['sqlserver', 'SQL Server'], ['sqldb', 'Base de datos SQL'], ['cosmos', 'Cosmos DB'], ['storage', 'Almacenamiento'], ['keyvault', 'Key Vault'], ['loganalytics', 'Log Analytics'], ['subscription', 'Identidad'], ['vpngw', 'VPN Gateway'], ['lb', 'Load Balancer'], ['natgw', 'NAT Gateway'], ['pip', 'IP pública'], ['pe', 'Private Endpoint'], ['nsg', 'NSG'], ['firewall', 'Firewall'], ['appgw', 'App Gateway + WAF'], ['bastion', 'Bastion']];
+const hex6 = n => '#' + n.toString(16).padStart(6, '0');
+function renderLegend(){
+  document.querySelector('.legend').innerHTML = STATUS_NAMES.map(([k, n]) => `<span><span class="dot" style="background:${COL[k]}"></span>${n}</span>`).join('') + '<button id="palBtn" class="palbtn">🎨 Personalizar</button>';
+  document.getElementById('palBtn').addEventListener('click', openPalette);
+}
+function openPalette(){
+  const el = document.getElementById('paleta');
+  el.innerHTML = `<h2>Personalizar colores</h2>
+    <div class="hint">Paletas rápidas</div>
+    <div class="row">${Object.keys(PRESETS).map(p => `<button data-preset="${p}">${p}</button>`).join('')}</div>
+    <div class="hint" style="margin-top:12px">Estados</div>
+    <div class="grid">${STATUS_NAMES.map(([k, n]) => `<label><input type="color" data-col="${k}" value="${COL[k]}"> ${n}</label>`).join('')}</div>
+    <div class="hint" style="margin-top:12px">Tipos de recurso (color del cuerpo)</div>
+    <div class="grid">${TYPE_NAMES.map(([k, n]) => `<label><input type="color" data-type="${k}" value="${hex6(TYPE_COL[k])}"> ${n}</label>`).join('')}</div>
+    <div class="row" style="margin-top:14px"><button id="palApply" class="primary">Aplicar</button><button id="palReset">Restaurar Microsoft</button><button id="palClose">Cerrar</button></div>
+    <div class="hint" style="margin-top:8px">Se guarda en este navegador. En el Quest, personalízalo en la vista normal antes de entrar en realidad mixta.</div>`;
+  el.style.display = 'block';
+  el.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => {
+    const p = PRESETS[b.dataset.preset].col; el.querySelectorAll('[data-col]').forEach(i => { i.value = p[i.dataset.col]; });
+  }));
+  document.getElementById('palClose').onclick = () => { el.style.display = 'none'; };
+  document.getElementById('palReset').onclick = () => { try { localStorage.removeItem(PKEY); } catch (e) {} location.reload(); };
+  document.getElementById('palApply').onclick = () => {
+    const col = {}, type = {};
+    el.querySelectorAll('[data-col]').forEach(i => { col[i.dataset.col] = i.value; });
+    el.querySelectorAll('[data-type]').forEach(i => { type[i.dataset.type] = i.value; });
+    try { localStorage.setItem(PKEY, JSON.stringify({ col, type })); location.reload(); }
+    catch (e) { setMsg('No se pudo guardar la paleta en este navegador.'); }
+  };
+}
+renderLegend();
 let scheme = 'tipo';
 try { scheme = localStorage.getItem('tablero-colores') || 'tipo'; } catch (e) {}
 function buildModel(type, hex){
@@ -867,7 +922,7 @@ function drawDetail(it){
   let y = 110 + ml.length * 32 + 20;
   if (it.desc){ ctx.fillStyle = '#ffffff'; ctx.font = '400 30px "Segoe UI", Arial'; wrap(ctx, it.desc, w - 80).forEach((l, i) => ctx.fillText(l, 40, y + i * 40)); detail.tex.needsUpdate = true; return; }
   if (!it.checks.length){
-    ctx.fillStyle = '#d2d0ce'; ctx.font = '400 28px "Segoe UI", Arial';
+    ctx.fillStyle = '#ffffff'; ctx.font = '400 28px "Segoe UI", Arial';
     wrap(ctx, 'Elemento externo a Azure: Defender for Cloud no lo evalúa. Mira los cables que salen de él.', w - 80).forEach((l, i) => ctx.fillText(l, 40, y + i * 38));
     detail.tex.needsUpdate = true; return;
   }
@@ -882,7 +937,7 @@ function drawDetail(it){
     const lines = wrap(ctx, ch.t, w - 330); lines.forEach((l, i) => ctx.fillText(l, 85, y + i * 34));
     ctx.font = '600 22px "Segoe UI", Arial'; const tag = ch.s ? `${ch.s} · ${ch.d}` : 'OK'; const tw = ctx.measureText(tag).width + 20;
     rr(ctx, w - 40 - tw, y - 26, tw, 34, 8); ctx.fillStyle = ch.ok ? '#323130' : COL[ch.s]; ctx.fill();
-    ctx.fillStyle = ch.ok ? '#d2d0ce' : '#11100f'; ctx.fillText(tag, w - 30 - tw, y - 2);
+    ctx.fillStyle = ch.ok ? '#ffffff' : '#11100f'; ctx.fillText(tag, w - 30 - tw, y - 2);
     y += lines.length * 34;
     if (!ch.ok && ch.fix){
       ctx.font = '400 24px "Segoe UI", Arial'; ctx.fillStyle = '#6cb8f6';
@@ -890,6 +945,7 @@ function drawDetail(it){
     }
     y += 26;
   }
+  ctx.fillStyle = '#6cb8f6'; ctx.font = '600 24px "Segoe UI", Arial'; ctx.fillText('Pulsa de nuevo la pieza para acercarla y ver su composición', 40, h - 24);
   detail.tex.needsUpdate = true;
 }
 
@@ -901,12 +957,13 @@ function renderDetailHTML(it){
   const ok = it.checks.filter(x => x.ok).length;
   detailEl.innerHTML = head + `<div class="meta">✔ ${ok} correctos · ✖ ${it.checks.length - ok} con fallo</div>` +
     sortChecks(it.checks).map(ch => `<div class="chk"><span style="color:${ch.ok ? COL.ok : COL[ch.s]};font-weight:700">${ch.ok ? '✔' : '✖'}</span> <b>${esc(ch.t)}</b><span class="tag" style="${ch.ok ? '' : `background:${COL[ch.s]};color:#11100f`}">${ch.s ? `${ch.s} · MCSB ${ch.d}` : 'OK'}</span>${!ch.ok && ch.fix ? `<div class="fix">→ ${esc(ch.fix)}</div>` : ''}</div>`).join('') +
-    `<span class="azbtn">↗ Abrir en Azure · disponible con datos reales</span>` +
+    `<button class="azbtn" style="cursor:pointer;background:#0078d4;color:#fff;border:0" onclick="window.__inspect && window.__inspect()">🔍 Acercar y ver composición</button> <span class="azbtn">↗ Abrir en Azure · con datos reales</span>` +
     `<div class="hint" style="margin-top:10px">Severidades, textos y dominios MCSB de ejemplo. En la versión conectada salen tal cual de Defender for Cloud.</div>`;
 }
 
 let selected = null;
-function select(rec){
+function select(rec, quiet){
+  if (!quiet && rec === selected && rec.kind === 'node'){ openInspector(rec); return; }
   selected = rec;
   if (rec.kind === 'node'){ selRing.visible = true; selRing.position.set(rec.grp.position.x, 0.004, rec.grp.position.z); }
   else selRing.visible = false;
@@ -995,26 +1052,26 @@ function boardPoint(ray){
 }
 function startDrag(rec, ray){
   const p = boardPoint(ray); if (!p) return false;
-  dragging = rec; dragOff.set(rec.grp.position.x - p.x, 0, rec.grp.position.z - p.z); select(rec); return true;
+  dragging = rec; dragOff.set(rec.grp.position.x - p.x, 0, rec.grp.position.z - p.z); select(rec, true); return true;
 }
 function dragTo(ray){ const p = boardPoint(ray); if (p && dragging) moveNode(dragging, p.x + dragOff.x, p.z + dragOff.z); }
 let saveT = null;
 function scheduleSave(){
   clearTimeout(saveT);
   saveT = setTimeout(() => {
-    const n = {}; for (const r of nodeRecs) n[r.item.id] = [+r.grp.position.x.toFixed(4), +r.grp.position.z.toFixed(4), +r.s.toFixed(3)];
+    const n = {}; for (const r of nodeRecs) n[r.item.id] = [+r.grp.position.x.toFixed(4), +r.grp.position.z.toFixed(4), +r.s.toFixed(3), +r.grp.rotation.y.toFixed(3)];
     try { localStorage.setItem(LKEY, JSON.stringify({ n, b: boardScale })); } catch (e) {}
   }, 400);
 }
 function loadLayout(){
   let d = null; try { d = JSON.parse(localStorage.getItem(LKEY) || 'null'); } catch (e) {}
   if (!d) return;
-  for (const r of nodeRecs){ const v = d.n && d.n[r.item.id]; if (v){ r.grp.position.x = v[0]; r.grp.position.z = v[1]; r.s = v[2] || 1; r.grp.scale.setScalar(r.s); r.anchorY = r.anchorY0 * r.s; } }
+  for (const r of nodeRecs){ const v = d.n && d.n[r.item.id]; if (v){ r.grp.position.x = v[0]; r.grp.position.z = v[1]; r.s = v[2] || 1; r.grp.scale.setScalar(r.s); r.grp.rotation.y = v[3] || 0; r.anchorY = r.anchorY0 * r.s; } }
   linkRecs.forEach(rebuildLink);
   if (d.b){ boardScale = d.b; board.scale.setScalar(boardScale); }
 }
 function resetLayout(){
-  for (const r of nodeRecs){ r.grp.position.set(r.item.pos[0], 0, r.item.pos[1]); r.s = 1; r.grp.scale.setScalar(1); r.anchorY = r.anchorY0; }
+  for (const r of nodeRecs){ r.grp.position.set(r.item.pos[0], 0, r.item.pos[1]); r.grp.rotation.y = 0; r.s = 1; r.grp.scale.setScalar(1); r.anchorY = r.anchorY0; }
   linkRecs.forEach(rebuildLink); boardScale = 1; board.scale.setScalar(1);
   if (selected && selected.kind === 'node'){ selRing.position.set(selected.grp.position.x, 0.004, selected.grp.position.z); selRing.scale.setScalar(1); }
   try { localStorage.removeItem(LKEY); } catch (e) {}
@@ -1043,6 +1100,7 @@ function doAction(a){
     case 'page-res': showCatalog(true, 'res'); break;
     case 'page-zon': showCatalog(true, 'zon'); break;
     case 'page-via': showCatalog(true, 'via'); break;
+    case 'close-insp': closeInspector(); break;
     case 'reset': resetLayout(); setMsg('Maqueta restablecida a la disposición original.'); break;
   }
 }
@@ -1053,6 +1111,84 @@ addEventListener('keydown', e => {
   if (e.key === '-' || e.key === '_') scaleNode(selected, 1 / 1.1);
 });
 loadLayout();
+/* ===================== inspector: acercar una pieza y ver su composición ===================== */
+const COMPOSE = {
+  vm: [['Cómputo (tamaño de VM)', []], ['Sistema operativo', ['actualizaciones', 'vulnerabilidades']], ['Disco de SO y datos', ['cifrado']], ['Interfaz de red (NIC)', ['puertos', 'jit']], ['Agente de protección', ['endpoints']], ['Autenticación', ['ssh solo']]],
+  sqlserver: [['Servidor lógico', ['administrador']], ['Red', ['acceso de red']], ['Auditoría', ['auditoría']], ['Evaluación de vulnerabilidades', ['evaluación']], ['Bases de datos alojadas', []]],
+  sqldb: [['Datos (cifrado TDE)', ['tde']], ['Vulnerabilidades', ['hallazgos']], ['Copias de seguridad', []]],
+  storage: [['Blobs', ['anónimo']], ['Red (firewall)', ['acceso de red']], ['Transporte (HTTPS)', ['transferencia']], ['Claves de acceso', ['clave compartida']], ['Archivos, colas y tablas', []]],
+  keyvault: [['Secretos, claves y certificados', ['soft delete', 'purga']], ['Red', ['acceso de red']], ['Permisos (RBAC)', ['rbac']]],
+  webapp: [['Aplicación', ['https']], ['TLS', ['tls']], ['Despliegue (FTP)', ['ftp']], ['Identidad administrada', ['identidad']], ['Plan de App Service', []]],
+  nsg: [['Reglas entrantes', ['regla', 'reglas entrantes']], ['Registros de flujo', ['flujo']], ['Asociaciones (subred / NIC)', []]],
+  vpngw: [['Túnel IPsec', ['ipsec']], ['Diagnóstico', ['diagnóstico']], ['Conexión local (oficina)', []]],
+  pip: [['Exposición a Internet', ['ip pública asociada']], ['Protección DDoS', ['ddos']]],
+  subscription: [['Propietarios', ['propietario']], ['MFA', ['mfa']], ['Invitados', ['invitado']], ['Contacto de seguridad', ['contacto']], ['Planes de Defender', ['defender']]]
+};
+function compose(item){
+  const def = COMPOSE[item.type];
+  if (!def) return item.checks.map(c => ({ name: c.t, checks: [c] }));
+  return def.map(([name, keys]) => ({ name, checks: item.checks.filter(c => keys.some(k => c.t.toLowerCase().includes(k))) }));
+}
+function compColor(cmp){
+  if (!cmp.checks.length) return COL.ext;
+  const bad = cmp.checks.filter(c => !c.ok); if (!bad.length) return COL.ok;
+  return COL[bad.reduce((w, c) => SEV[c.s] > SEV[w] ? c.s : w, bad[0].s)];
+}
+const inspector = new THREE.Group(); inspector.visible = false; scene.add(inspector);
+let insp = null;
+function closeInspector(){
+  for (let i = pickables.length - 1; i >= 0; i--) if (pickables[i].userData.insp) pickables.splice(i, 1);
+  inspector.clear(); inspector.visible = false; insp = null;
+  for (const r of nodeRecs) r.label.visible = true;
+}
+function openInspector(rec){
+  closeInspector();
+  for (const r of nodeRecs) r.label.visible = false;
+  const it = rec.item, hex = it.statusOverride || statusColor(it);
+  const bg = new THREE.Mesh(new THREE.PlaneGeometry(0.78, 0.48), new THREE.MeshBasicMaterial({ color: 0x201f1e, transparent: true, opacity: 0.93, side: THREE.DoubleSide }));
+  bg.position.z = -0.04; bg.userData.insp = true; bg.userData.inspBg = true; inspector.add(bg); pickables.push(bg);
+  const frame = new THREE.LineSegments(new THREE.EdgesGeometry(bg.geometry), new THREE.LineBasicMaterial({ color: 0x0078d4 })); frame.position.copy(bg.position); inspector.add(frame);
+  const spinner = new THREE.Group(); inspector.add(spinner);
+  const { g, h } = buildModel(it.type, hex); const k = 0.15 / Math.max(h, 0.035); g.scale.setScalar(k); g.position.y = -h * k / 2 - 0.01; spinner.add(g);
+  const title = makeLabel(`${it.name} · ${it.typeLabel}`, 0.026, { border: hex }); title.position.set(0, 0.195, 0); inspector.add(title);
+  const comps = compose(it);
+  comps.forEach((cmp, i) => {
+    const n = comps.length, an = Math.PI / 2 - (i + 0.5) * (Math.PI * 2 / n);
+    const x = Math.cos(an) * 0.24, y = Math.sin(an) * 0.13;
+    const c = compColor(cmp);
+    const cube = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.022, 0.012), new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.5 }));
+    cube.position.set(x, y, 0.01); inspector.add(cube);
+    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x * 0.4, y * 0.4, 0), new THREE.Vector3(x, y, 0.01)]), new THREE.LineBasicMaterial({ color: c, transparent: true, opacity: 0.7 })); inspector.add(line);
+    const bad = cmp.checks.filter(cc => !cc.ok).length;
+    const txt = !cmp.checks.length ? `${cmp.name} · sin controles` : bad ? `✖ ${cmp.name} · ${bad}` : `✔ ${cmp.name}`;
+    const lb = makeLabel(txt, 0.018, { border: c, size: 40 }); lb.position.set(x, y + (y >= 0 ? 0.028 : -0.028), 0.012); inspector.add(lb);
+    const crec = { kind: 'info', item: { name: cmp.name, typeLabel: 'Componente de ' + it.name, checks: cmp.checks, desc: cmp.checks.length ? null : 'Este componente no tiene controles de Defender evaluados en los datos de demo.' }, grp: cube };
+    cube.userData.rec = crec; cube.userData.insp = true; pickables.push(cube);
+  });
+  const close = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.032, 0.008), new THREE.MeshStandardMaterial({ color: 0x0f2a47, emissive: 0x0078d4, emissiveIntensity: 0.5 }));
+  close.position.set(0, -0.19, 0); close.userData.action = 'close-insp'; close.userData.insp = true; inspector.add(close); pickables.push(close);
+  const cl = makeFlatLabel('✖ Cerrar', 0.02, { bg: null, size: 44, weight: 800, pad: 6 }); cl.rotation.x = 0; cl.position.set(0, -0.19, 0.0045); inspector.add(cl);
+  const hint = makeLabel('Joystick ← → o teclas Q/E: girar · Grip: mover el panel', 0.013, { bg: null, color: '#c8c6c4', size: 36 }); hint.position.set(0, -0.215, 0); inspector.add(hint);
+  /* delante de la cara */
+  const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
+  const cp = new THREE.Vector3(), cd = new THREE.Vector3(); cam.getWorldPosition(cp); cam.getWorldDirection(cd);
+  inspector.position.copy(cp).addScaledVector(cd, renderer.xr.isPresenting ? 0.5 : 0.62);
+  inspector.lookAt(cp);
+  inspector.visible = true; insp = { rec, spinner, auto: true };
+  setMsg('Inspector abierto: cada cubo es un componente del recurso, con su estado. Tócalo para ver sus controles.');
+}
+function rotateNode(rec, da){ rec.grp.rotation.y += da; scheduleSave(); }
+addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (k === 'escape' && insp) closeInspector();
+  if (k !== 'q' && k !== 'e') return;
+  const da = (k === 'q' ? 1 : -1) * Math.PI / 12;
+  if (insp){ insp.auto = false; insp.spinner.rotation.y += da; }
+  else if (selected && selected.kind === 'node') rotateNode(selected, da);
+});
+window.__inspect = () => { if (selected && selected.kind === 'node') openInspector(selected); };
+canvas.addEventListener('dblclick', () => { if (selected && selected.kind === 'node') openInspector(selected); });
+
 
 /* ===================== realidad mixta (WebXR) ===================== */
 const btn = document.getElementById('xr'); const msgEl = document.getElementById('msg');
@@ -1139,17 +1275,23 @@ function onSqueeze(ctrl, down){
     else { two = { kind: 'board', d0, s0: boardScale }; other.userData.sq = { mode: 'hold' }; }
     ctrl.userData.sq = { mode: 'hold' }; return;
   }
+  if (insp){
+    const ic = inspector.getWorldPosition(new THREE.Vector3()); const hitI = rayFrom(ctrl);
+    if (ic.distanceTo(wp) < 0.3 || (hitI && hitI.object.userData.insp)){ ctrl.userData.sq = { mode: 'insp', start: wp.clone(), p0: inspector.position.clone() }; return; }
+  }
   let rec = nearestNode(wp), ray = false;
   if (!rec){ const hit = rayFrom(ctrl); if (hit && hit.object.userData.rec && hit.object.userData.rec.kind === 'node'){ rec = hit.object.userData.rec; ray = true; } }
   if (rec){
-    select(rec);
+    select(rec, true);
     const lp = board.worldToLocal(wp.clone());
-    ctrl.userData.sq = { mode: 'piece', rec, ray, off: new THREE.Vector3(rec.grp.position.x - lp.x, 0, rec.grp.position.z - lp.z) };
+    ctrl.userData.sq = { mode: 'piece', rec, ray, roll0: rollOf(ctrl), ry0: rec.grp.rotation.y, off: new THREE.Vector3(rec.grp.position.x - lp.x, 0, rec.grp.position.z - lp.z) };
     if (ray) startDrag(rec, raycaster.ray);
   } else {
     ctrl.userData.sq = { mode: 'board', start: wp.clone(), b0: board.position.clone() };
   }
 }
+const tmpE = new THREE.Euler();
+function rollOf(ctrl){ return tmpE.setFromQuaternion(ctrl.quaternion, 'YXZ').z; }
 function setNodeScale(rec, v){ scaleNode(rec, clamp(v, 0.5, 3) / rec.s); }
 function updateSqueeze(){
   if (two){
@@ -1161,7 +1303,9 @@ function updateSqueeze(){
     const sq = ctrl.userData.sq; if (!sq) continue;
     const wp = ctrlPos(ctrl, new THREE.Vector3());
     if (sq.mode === 'board'){ board.position.copy(sq.b0).add(wp.sub(sq.start)); }
+    else if (sq.mode === 'insp'){ inspector.position.copy(sq.p0).add(wp.sub(sq.start)); }
     else if (sq.mode === 'piece'){
+      sq.rec.grp.rotation.y = sq.ry0 - (rollOf(ctrl) - sq.roll0);
       if (sq.ray){ tmpM.identity().extractRotation(ctrl.matrixWorld); raycaster.ray.origin.setFromMatrixPosition(ctrl.matrixWorld); raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tmpM); dragTo(raycaster.ray); }
       else { const lp = board.worldToLocal(wp); moveNode(sq.rec, lp.x + sq.off.x, lp.z + sq.off.z); }
     }
@@ -1217,7 +1361,7 @@ function applyHover(set){
   for (const l of linkRecs){
     const on = set.has(l) || l === selected;
     l.tubeMat.opacity = on ? 1 : l.baseOpacity;
-    l.label.visible = !l.ok || on;
+    l.label.visible = !insp && (!l.ok || on);
   }
   for (const [a, m] of Object.entries(toolBtns)) m.material.emissiveIntensity = set.has(a) ? 0.9 : (a === 'edit' && editMode ? 0.8 : 0.35);
 }
@@ -1232,6 +1376,7 @@ renderer.setAnimationLoop((t, frame) => {
   for (const l of linkRecs) for (const p of l.pulses) p.m.position.copy(l.curve.getPoint((s * l.speed + p.off) % 1));
   scan.position.z = -D / 2 + ((s * 0.1) % 1) * D;
   if (catalog.visible) for (const d of roadDots) d.m.position.set(d.x0 + ((s * d.speed + d.off) % 1) * (d.x1 - d.x0), d.y, d.z);
+  if (insp && insp.auto) insp.spinner.rotation.y += 0.006;
   if (selRing.visible) selRing.material.opacity = 0.55 + 0.4 * Math.sin(s * 3);
 
   const hv = new Set();
@@ -1250,7 +1395,11 @@ renderer.setAnimationLoop((t, frame) => {
       const gp = ctrl.userData.src && ctrl.userData.src.gamepad;
       if (gp && gp.axes.length >= 4 && Math.abs(gp.axes[3]) > 0.4){
         const f = 1 - gp.axes[3] * 0.012;
-        if (editMode && selected && selected.kind === 'node') scaleNode(selected, f); else setBoardScale(boardScale * f);
+        if (insp) insp.spinner.scale.multiplyScalar(f); else if (editMode && selected && selected.kind === 'node') scaleNode(selected, f); else setBoardScale(boardScale * f);
+      }
+      if (gp && gp.axes.length >= 4 && Math.abs(gp.axes[2]) > 0.4){
+        const da = -gp.axes[2] * 0.05;
+        if (insp){ insp.auto = false; insp.spinner.rotation.y += da; } else if (selected && selected.kind === 'node') rotateNode(selected, da);
       }
       const hit = placing ? null : rayFrom(ctrl);
       ctrl.userData.line.scale.z = hit ? hit.distance : 0.6;
