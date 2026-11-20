@@ -9,11 +9,11 @@
 <style>
   html,body{margin:0;height:100%;background:#11100f;color:#ffffff;font-family:"Segoe UI",system-ui,Arial,sans-serif;overflow:hidden}
   #c{position:fixed;inset:0;display:block}
-  .card{position:fixed;background:rgba(37,36,35,.94);border:1px solid rgba(0,120,212,.55);border-radius:12px;padding:14px 16px;box-sizing:border-box}
+  .card{position:fixed;background:rgba(37,36,35,.94);border:1px solid rgba(0,120,212,.55);border-radius:18px;padding:14px 16px;box-sizing:border-box}
   #hud{top:16px;left:16px;width:340px}
   h1{font-size:17px;margin:0 0 4px}
   .sub{font-size:12px;color:#c8c6c4;margin-bottom:12px;line-height:1.4}
-  #xr{width:100%;padding:12px;border-radius:10px;border:0;background:#0078d4;color:#ffffff;font-weight:700;font-size:15px;cursor:pointer}
+  #xr{width:100%;padding:12px;border-radius:14px;border:0;background:#0078d4;color:#ffffff;font-weight:700;font-size:15px;cursor:pointer}
   #xr:disabled{background:#3b3a39;color:#a19f9d;cursor:not-allowed}
   #msg{font-size:12px;color:#ffb900;margin-top:8px;line-height:1.45}
   .legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;font-size:12px;color:#ffffff}
@@ -28,19 +28,19 @@
   .hint{font-size:12px;color:#c8c6c4;line-height:1.45}
   .azbtn{display:inline-block;margin-top:12px;padding:7px 10px;border-radius:8px;border:1px dashed #3b5878;color:#a19f9d;font-size:12px}
   #tools{bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:6px;padding:8px;flex-wrap:wrap;justify-content:center}
-  #tools button{padding:8px 11px;border-radius:8px;border:1px solid #2c6e9e;background:#252423;color:#e1dfdd;font-size:13px;font-weight:600;cursor:pointer}
+  #tools button{padding:8px 11px;border-radius:12px;border:1px solid #2c6e9e;background:#252423;color:#e1dfdd;font-size:13px;font-weight:600;cursor:pointer}
   #tools button:hover{border-color:#2899f5}
   #tools button.on{background:#2899f5;color:#11100f;border-color:#2899f5}
-  #pages button{flex:1;padding:7px 4px;border-radius:8px;border:1px solid #2b88d8;background:#252423;color:#e1dfdd;font-size:12px;font-weight:600;cursor:pointer}
+  #pages button{flex:1;padding:7px 4px;border-radius:12px;border:1px solid #2b88d8;background:#252423;color:#e1dfdd;font-size:12px;font-weight:600;cursor:pointer}
   #pages button.on{background:#0078d4;color:#fff;border-color:#0078d4}
-  .palbtn{padding:3px 8px;border-radius:7px;border:1px solid #2b88d8;background:#252423;color:#e1dfdd;font-size:12px;font-weight:600;cursor:pointer}
+  .palbtn{padding:3px 8px;border-radius:10px;border:1px solid #2b88d8;background:#252423;color:#e1dfdd;font-size:12px;font-weight:600;cursor:pointer}
   #paleta{display:none;top:50%;left:50%;transform:translate(-50%,-50%);width:min(560px,92vw);max-height:86vh;overflow:auto;z-index:5}
   #paleta h2{font-size:16px;margin:0 0 10px}
   #paleta .row{display:flex;gap:8px;flex-wrap:wrap}
   #paleta .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px 12px;margin-top:6px;font-size:13px;color:#e1dfdd}
   #paleta label{display:flex;align-items:center;gap:8px}
   #paleta input[type=color]{width:32px;height:24px;border:0;background:none;padding:0;cursor:pointer}
-  #paleta button{padding:7px 12px;border-radius:8px;border:1px solid #2b88d8;background:#252423;color:#e1dfdd;font-size:13px;font-weight:600;cursor:pointer}
+  #paleta button{padding:7px 12px;border-radius:12px;border:1px solid #2b88d8;background:#252423;color:#e1dfdd;font-size:13px;font-weight:600;cursor:pointer}
   #paleta button.primary{background:#0078d4;border-color:#0078d4;color:#fff}
   #azure{display:none;top:50%;left:50%;transform:translate(-50%,-50%);width:min(560px,92vw);max-height:88vh;overflow:auto;z-index:6}
   #azure h2{font-size:16px;margin:0 0 8px}
@@ -48,7 +48,7 @@
   #azure label{display:block;font-size:12px;color:#c8c6c4;margin-top:8px}
   #azure input{width:100%;box-sizing:border-box;margin-top:3px;padding:7px;border-radius:7px;border:1px solid #3b3a39;background:#11100f;color:#fff;font-size:13px;font-family:monospace}
   #azure .row{display:flex;gap:8px;margin-top:12px}
-  #azure button{padding:8px 12px;border-radius:8px;border:1px solid #2b88d8;background:#252423;color:#e1dfdd;font-size:13px;font-weight:600;cursor:pointer}
+  #azure button{padding:8px 12px;border-radius:12px;border:1px solid #2b88d8;background:#252423;color:#e1dfdd;font-size:13px;font-weight:600;cursor:pointer}
   #azure button.primary{background:#0078d4;border-color:#0078d4;color:#fff}
   #azure .ok{color:#6bb700}
   #azure .err{color:#f7630c}
@@ -73,12 +73,12 @@
 
 <div id="hud" class="card">
   <h1>Mapa de red holográfico · Defender for Cloud</h1>
-  <div class="sub">Prototipo v0.9.2 · <b>datos de ejemplo ficticios</b>. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
-  <button id="cat" style="width:100%;padding:9px;border-radius:10px;border:1px solid #2899f5;background:transparent;color:#6cb8f6;font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px">Ver catálogo de modelos 3D</button>
+  <div class="sub">Prototipo v0.9.3 · <b>datos de ejemplo ficticios</b>. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
+  <button id="cat" style="width:100%;padding:9px;border-radius:14px;border:1px solid #2899f5;background:transparent;color:#6cb8f6;font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px">Ver catálogo de modelos 3D</button>
   <div id="pages" style="display:none;gap:6px;margin-bottom:8px"><button data-p="res">Recursos</button><button data-p="zon">Zonas</button><button data-p="via">Vías y controles</button></div>
   <button id="xr" disabled>Comprobando realidad mixta…</button>
   <div id="msg"></div>
-  <button id="azBtn" style="width:100%;padding:9px;border-radius:10px;border:1px solid #0078d4;background:#0078d4;color:#fff;font-weight:700;font-size:13px;cursor:pointer;margin:8px 0 2px">⚡ Conectar con tu Azure (datos reales)</button>
+  <button id="azBtn" style="width:100%;padding:9px;border-radius:14px;border:1px solid #0078d4;background:#0078d4;color:#fff;font-weight:700;font-size:13px;cursor:pointer;margin:8px 0 2px">⚡ Conectar con tu Azure (datos reales)</button>
   <div class="legend">
     <span><span class="dot" style="background:#d13438"></span>Fallo alta</span>
     <span><span class="dot" style="background:#f7630c"></span>Fallo media</span>
@@ -275,8 +275,11 @@ scene.add(new THREE.HemisphereLight(0xbfe6ff, 0x0a1422, 1.1));
 const dl = new THREE.DirectionalLight(0xffffff, 1.2); dl.position.set(0.5, 1.5, 0.8); scene.add(dl);
 
 const board = new THREE.Group(); scene.add(board);
+function roundedShape(w, d, r){ const sh = new THREE.Shape(); const hw = w/2, hd = d/2; r = Math.min(r, hw, hd); sh.moveTo(-hw+r,-hd); sh.lineTo(hw-r,-hd); sh.quadraticCurveTo(hw,-hd,hw,-hd+r); sh.lineTo(hw,hd-r); sh.quadraticCurveTo(hw,hd,hw-r,hd); sh.lineTo(-hw+r,hd); sh.quadraticCurveTo(-hw,hd,-hw,hd-r); sh.lineTo(-hw,-hd+r); sh.quadraticCurveTo(-hw,-hd,-hw+r,-hd); return sh; }
+function roundedPlate(w, d, h, r){ const g = new THREE.ExtrudeGeometry(roundedShape(w, d, r), { depth: h, bevelEnabled: false }); g.rotateX(-Math.PI/2); g.translate(0, -h/2, 0); return g; }
+function roundedPanel(w, h, depth, r){ const g = new THREE.ExtrudeGeometry(roundedShape(w, h, r), { depth, bevelEnabled: false }); g.translate(0, 0, -depth/2); return g; }
 const W = 1.14, D = 0.7;
-const base = new THREE.Mesh(new THREE.BoxGeometry(W, 0.02, D), new THREE.MeshStandardMaterial({ color: 0x252423, transparent: true, opacity: 0.9, roughness: 0.6 }));
+const base = new THREE.Mesh(new THREE.BoxGeometry(W, 0.02, D), new THREE.MeshStandardMaterial({ color: 0x252423, transparent: true, opacity: 0.08, depthWrite: false, roughness: 0.6 }));
 base.position.y = -0.01; board.add(base);
 const bEdges = new THREE.LineSegments(new THREE.EdgesGeometry(base.geometry), new THREE.LineBasicMaterial({ color: 0x2899f5, transparent: true, opacity: 0.8 }));
 bEdges.position.copy(base.position); board.add(bEdges);
@@ -326,18 +329,18 @@ let T = map;
 for (const zn of ZONES){
   const [x0, x1] = zn.x, [z0, z1] = zn.z;
   if (zn.kind === 'vnet'){
-    flatPlate(x0, x1, z0, z1, 0.001, 0x0f2d4b, 0.6, 0x2899f5, false);
+    flatPlate(x0, x1, z0, z1, 0.001, 0x0f2d4b, 0.28, 0x2899f5, false);
     const wall = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, 0.016, z1 - z0), new THREE.MeshBasicMaterial({ color: 0x2899f5, transparent: true, opacity: 0.05, depthWrite: false }));
     wall.position.set((x0 + x1) / 2, 0.008, (z0 + z1) / 2); T.add(wall);
     const we = new THREE.LineSegments(new THREE.EdgesGeometry(wall.geometry), new THREE.LineBasicMaterial({ color: 0x2899f5, transparent: true, opacity: 0.6 }));
     we.position.copy(wall.position); T.add(we);
     placeFlatLabel(zn.name, x0 + 0.008, z0 + 0.024, 0.022, { bg: null, color: '#6cb8f6', size: 40, weight: 700 });
     for (const sn of zn.subnets){
-      flatPlate(x0 + 0.01, x1 - 0.01, sn.z[0], sn.z[1], 0.0025, sn.warn ? 0x3a2a10 : 0x173f63, 0.65, sn.warn ? 0xf7630c : 0x2b88d8, !!sn.warn);
+      flatPlate(x0 + 0.01, x1 - 0.01, sn.z[0], sn.z[1], 0.0025, sn.warn ? 0x3a2a10 : 0x173f63, 0.35, sn.warn ? 0xf7630c : 0x2b88d8, !!sn.warn);
       placeFlatLabel(sn.name, x0 + 0.016, sn.z[1] - 0.013, 0.017, { bg: null, color: sn.warn ? '#ffaa44' : '#9ccbf2', size: 40 });
     }
   } else {
-    flatPlate(x0, x1, z0, z1, 0.001, zn.kind === 'paas' ? 0x2a1f4a : 0x2d2c2b, 0.6, zn.kind === 'paas' ? 0x8661c5 : 0x8a8886, true);
+    flatPlate(x0, x1, z0, z1, 0.001, zn.kind === 'paas' ? 0x2a1f4a : 0x2d2c2b, 0.28, zn.kind === 'paas' ? 0x8661c5 : 0x8a8886, true);
     placeFlatLabel(zn.name, x0 + 0.008, z1 - 0.014, 0.018, { bg: null, color: zn.kind === 'paas' ? '#b4a0e0' : '#ffffff', size: 40 });
   }
 }
@@ -694,7 +697,7 @@ const toolBtns = {};
 const toolbar = new THREE.Group(); board.add(toolbar);
 TOOLS.forEach(([action, text], i) => {
   const bw = 0.116, x = -((TOOLS.length - 1) * 0.125) / 2 + i * 0.125;
-  const m = new THREE.Mesh(new THREE.BoxGeometry(bw, 0.012, 0.042), new THREE.MeshStandardMaterial({ color: 0x0f2a47, emissive: 0x0078d4, emissiveIntensity: 0.35 }));
+  const m = new THREE.Mesh(roundedPlate(bw, 0.042, 0.012, 0.009), new THREE.MeshStandardMaterial({ color: 0x0f2a47, emissive: 0x0078d4, emissiveIntensity: 0.35 }));
   m.position.set(x, 0.006, D / 2 + 0.045); m.userData.action = action; toolbar.add(m); pickables.push(m);
   const l = makeFlatLabel(text, 0.02, { bg: null, size: 44, weight: 800, pad: 6 }); l.position.set(x, 0.0125, D / 2 + 0.045); toolbar.add(l);
   toolBtns[action] = m;
@@ -864,12 +867,16 @@ CONTROLS.forEach(([type, name, sub, desc], i) => {
 const PAGES = [['page-map', '⟵ Mapa'], ['page-res', 'Recursos'], ['page-zon', 'Zonas'], ['page-via', 'Vías y controles']];
 PAGES.forEach(([action, text], i) => {
   const x = -0.33 + i * 0.22;
-  const m = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.012, 0.04), new THREE.MeshStandardMaterial({ color: 0x0f2a47, emissive: 0x0078d4, emissiveIntensity: 0.35 }));
+  const m = new THREE.Mesh(roundedPlate(0.2, 0.04, 0.012, 0.009), new THREE.MeshStandardMaterial({ color: 0x0f2a47, emissive: 0x0078d4, emissiveIntensity: 0.35 }));
   m.position.set(x, 0.006, -D / 2 - 0.04); m.userData.action = action; catalog.add(m); pickables.push(m); toolBtns[action] = m;
   const l = makeFlatLabel(text, 0.026, { bg: null, size: 44, weight: 800, pad: 6 }); l.position.set(x, 0.0125, -D / 2 - 0.04); catalog.add(l);
 });
 T = map;
 
+const moveBubble = new THREE.Mesh(new THREE.SphereGeometry(0.02, 24, 18), new THREE.MeshStandardMaterial({ color: 0x2899f5, emissive: 0x2899f5, emissiveIntensity: 0.6, transparent: true, opacity: 0.5, roughness: 0.3 }));
+moveBubble.position.set(0, 0.07, 0); moveBubble.userData.bubble = true; moveBubble.visible = false; board.add(moveBubble); pickables.push(moveBubble);
+const bubbleRing = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.0022, 10, 40), new THREE.MeshBasicMaterial({ color: 0x69afe5 })); bubbleRing.position.copy(moveBubble.position); bubbleRing.visible = false; board.add(bubbleRing);
+const bubbleLbl = makeLabel('✋ Agárrame para mover', 0.016, { border: '#2899f5' }); bubbleLbl.position.set(0, 0.11, 0); bubbleLbl.visible = false; board.add(bubbleLbl);
 const selRing = new THREE.Mesh(new THREE.RingGeometry(0.036, 0.043, 48), new THREE.MeshBasicMaterial({ color: 0x2899f5, transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
 selRing.rotation.x = -Math.PI / 2; selRing.visible = false; board.add(selRing);
 
@@ -1111,6 +1118,7 @@ function doAction(a){
     case 'mplus': setBoardScale(boardScale * 1.15); break;
     case 'mminus': setBoardScale(boardScale / 1.15); break;
     case 'colors':
+      if (!renderer.xr.isPresenting){ openPalette(); break; }
       scheme = scheme === 'tipo' ? 'estado' : 'tipo';
       try { localStorage.setItem('tablero-colores', scheme); } catch (e) {}
       for (const r of nodeRecs) for (const m of r.shells) m.color.copy(scheme === 'tipo' ? m.userData.typeCol : m.userData.neutral);
@@ -1188,7 +1196,7 @@ function openInspector(rec){
     const crec = { kind: 'info', item: { name: cmp.name, typeLabel: 'Componente de ' + it.name, checks: cmp.checks, desc: cmp.checks.length ? null : 'Este componente no tiene controles de Defender evaluados en los datos de demo.' }, grp: cube };
     cube.userData.rec = crec; cube.userData.insp = true; pickables.push(cube);
   });
-  const close = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.032, 0.008), new THREE.MeshStandardMaterial({ color: 0x0f2a47, emissive: 0x0078d4, emissiveIntensity: 0.5 }));
+  const close = new THREE.Mesh(roundedPanel(0.11, 0.032, 0.008, 0.009), new THREE.MeshStandardMaterial({ color: 0x0f2a47, emissive: 0x0078d4, emissiveIntensity: 0.5 }));
   close.position.set(0, -0.19, 0); close.userData.action = 'close-insp'; close.userData.insp = true; inspector.add(close); pickables.push(close);
   const cl = makeFlatLabel('✖ Cerrar', 0.02, { bg: null, size: 44, weight: 800, pad: 6 }); cl.rotation.x = 0; cl.position.set(0, -0.19, 0.0045); inspector.add(cl);
   const hint = makeLabel('Joystick ← → o teclas Q/E: girar · Grip: mover el panel', 0.013, { bg: null, color: '#c8c6c4', size: 36 }); hint.position.set(0, -0.215, 0); inspector.add(hint);
@@ -1303,6 +1311,8 @@ function onSqueeze(ctrl, down){
     const ic = inspector.getWorldPosition(new THREE.Vector3()); const hitI = rayFrom(ctrl);
     if (ic.distanceTo(wp) < 0.3 || (hitI && hitI.object.userData.insp)){ ctrl.userData.sq = { mode: 'insp', start: wp.clone(), p0: inspector.position.clone() }; return; }
   }
+  const bpos = moveBubble.getWorldPosition(new THREE.Vector3()); const hitB = rayFrom(ctrl);
+  if (bpos.distanceTo(wp) < 0.09 || (hitB && hitB.object.userData.bubble)){ ctrl.userData.sq = { mode: 'board', start: wp.clone(), b0: board.position.clone() }; return; }
   let rec = nearestNode(wp), ray = false;
   if (!rec){ const hit = rayFrom(ctrl); if (hit && hit.object.userData.rec && hit.object.userData.rec.kind === 'node'){ rec = hit.object.userData.rec; ray = true; } }
   if (rec){
@@ -1398,6 +1408,9 @@ renderer.setAnimationLoop((t, frame) => {
     r.orb.scale.setScalar(r.bad ? 1 + 0.25 * (0.5 + 0.5 * Math.sin(s * 4 + r.phase)) : 1);
   }
   for (const l of linkRecs) for (const p of l.pulses) p.m.position.copy(l.curve.getPoint((s * l.speed + p.off) % 1));
+  const xrOn = renderer.xr.isPresenting;
+  if (moveBubble.visible !== xrOn){ moveBubble.visible = bubbleRing.visible = bubbleLbl.visible = xrOn; }
+  if (xrOn){ moveBubble.scale.setScalar(1 + 0.12 * Math.sin(s * 3)); bubbleRing.rotation.z = s; }
   scan.position.z = -D / 2 + ((s * 0.1) % 1) * D;
   if (catalog.visible) for (const d of roadDots) d.m.position.set(d.x0 + ((s * d.speed + d.off) % 1) * (d.x1 - d.x0), d.y, d.z);
   if (insp && insp.auto) insp.spinner.rotation.y += 0.006;
