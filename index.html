@@ -73,7 +73,7 @@
 
 <div id="hud" class="card">
   <h1>Mapa de red holográfico · Defender for Cloud</h1>
-  <div class="sub">Prototipo v0.9.3 · <b>datos de ejemplo ficticios</b>. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
+  <div class="sub">Prototipo v0.10 · <b>datos de ejemplo ficticios</b>. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
   <button id="cat" style="width:100%;padding:9px;border-radius:14px;border:1px solid #2899f5;background:transparent;color:#6cb8f6;font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px">Ver catálogo de modelos 3D</button>
   <div id="pages" style="display:none;gap:6px;margin-bottom:8px"><button data-p="res">Recursos</button><button data-p="zon">Zonas</button><button data-p="via">Vías y controles</button></div>
   <button id="xr" disabled>Comprobando realidad mixta…</button>
@@ -692,11 +692,11 @@ for (const l of linkRecs) for (const id of [l.L.from, l.L.to]) if (id) (nodeLink
 for (const r of nodeRecs){ r.s = 1; r.anchorY0 = r.anchorY; }
 
 /* barra de herramientas 3D (útil en RM; en escritorio hay otra en HTML) */
-const TOOLS = [['move', '⟲ Colocar'], ['edit', '✋ Editar'], ['pminus', 'Pieza −'], ['pplus', 'Pieza +'], ['mminus', 'Maqueta −'], ['mplus', 'Maqueta +'], ['reset', '↺ Restablecer'], ['colors', '🎨 Colores'], ['catalog', '📘 Catálogo']];
+const TOOLS = [['move', '⟲ Colocar'], ['edit', '✋ Editar'], ['pminus', 'Pieza −'], ['pplus', 'Pieza +'], ['mminus', 'Maqueta −'], ['mplus', 'Maqueta +'], ['reset', '↺ Restablecer'], ['colors', '🎨 Colores'], ['catalog', '📘 Catálogo'], ['world', '🌐 Mundo']];
 const toolBtns = {};
 const toolbar = new THREE.Group(); board.add(toolbar);
 TOOLS.forEach(([action, text], i) => {
-  const bw = 0.116, x = -((TOOLS.length - 1) * 0.125) / 2 + i * 0.125;
+  const bw = 0.104, x = -((TOOLS.length - 1) * 0.112) / 2 + i * 0.112;
   const m = new THREE.Mesh(roundedPlate(bw, 0.042, 0.012, 0.009), new THREE.MeshStandardMaterial({ color: 0x0f2a47, emissive: 0x0078d4, emissiveIntensity: 0.35 }));
   m.position.set(x, 0.006, D / 2 + 0.045); m.userData.action = action; toolbar.add(m); pickables.push(m);
   const l = makeFlatLabel(text, 0.02, { bg: null, size: 44, weight: 800, pad: 6 }); l.position.set(x, 0.0125, D / 2 + 0.045); toolbar.add(l);
@@ -1049,7 +1049,7 @@ function pickFrom(rc){
 }
 function handlePick(obj){
   if (obj.userData.action){ doAction(obj.userData.action); return; }
-  if (obj.userData.rec) select(obj.userData.rec);
+  if (obj.userData.rec){ const r = obj.userData.rec; if (r.kind === 'loc') selectLoc(r); else select(r); }
 }
 
 /* ===================== modo maqueta: mover y escalar ===================== */
@@ -1125,6 +1125,7 @@ function doAction(a){
       setMsg(scheme === 'tipo' ? 'Colores por tipo: cada clase de recurso tiene su color; el estado se ve en el aro del suelo, la esfera y las piezas de acento.' : 'Colores por estado: cuerpos en gris; solo destacan los colores de estado.');
       break;
     case 'catalog': showCatalog(!catalog.visible, 'res'); break;
+    case 'world': showWorld(!worldGroup.visible); break;
     case 'page-map': showCatalog(false); break;
     case 'page-res': showCatalog(true, 'res'); break;
     case 'page-zon': showCatalog(true, 'zon'); break;
@@ -1401,6 +1402,125 @@ function applyHover(set){
 }
 function collect(hit, set){ if (!hit) return; if (hit.object.userData.action) set.add(hit.object.userData.action); else if (hit.object.userData.rec) set.add(hit.object.userData.rec); }
 
+
+/* ===================== vista mundo: globo holográfico de ubicaciones ===================== */
+/* Datos de DEMO (fundamentos TCM) hasta conectar el tenant. funcs = nivel de actividad/desarrollo. */
+const WORLD = {
+  hub: 'mx',
+  locs: [
+    { id: 'mx', name: 'TCM México', lat: 19.4, lon: -99.1, funcs: 30, status: { Alta: 4, Media: 7, Baja: 0, ok: 19 } },
+    { id: 'ca', name: 'TCM Centroamérica', lat: 9.9, lon: -84.1, funcs: 12, status: { Alta: 0, Media: 5, Baja: 0, ok: 7 } },
+    { id: 'cn', name: 'TCM Canadá', lat: 43.7, lon: -79.4, funcs: 8, status: { Alta: 0, Media: 0, Baja: 0, ok: 8 } },
+    { id: 'es', name: 'TCM España', lat: 40.4, lon: -3.7, funcs: 10, status: { Alta: 0, Media: 3, Baja: 0, ok: 7 } }
+  ]
+};
+const WR = 0.24;
+const worldGroup = new THREE.Group(); worldGroup.visible = false; worldGroup.position.set(0, 0.33, 0); board.add(worldGroup);
+const worldSpin = new THREE.Group(); worldGroup.add(worldSpin); worldSpin.rotation.y = -1.15;
+
+function llToXYZ(lat, lon, r){ const la = lat * Math.PI / 180, lo = lon * Math.PI / 180; return new THREE.Vector3(r * Math.cos(la) * Math.cos(lo), r * Math.sin(la), -r * Math.cos(la) * Math.sin(lo)); }
+function worstLoc(l){ return l.status.Alta ? COL.Alta : l.status.Media ? COL.Media : l.status.Baja ? COL.Baja : COL.ok; }
+function glowTex(){ return canvasTex('glow', 128, 128, (x, w, h) => { const g = x.createRadialGradient(w/2, h/2, 0, w/2, h/2, w/2); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.25, 'rgba(255,255,255,0.7)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, w, h); }); }
+
+/* globo: esfera tenue + rejilla lat/long */
+const globe = new THREE.Mesh(new THREE.SphereGeometry(WR, 48, 36), new THREE.MeshPhongMaterial({ color: 0x0b2a4a, transparent: true, opacity: 0.45, shininess: 8 }));
+worldSpin.add(globe);
+const gmat = new THREE.LineBasicMaterial({ color: 0x2b88d8, transparent: true, opacity: 0.3 });
+for (let lat = -60; lat <= 60; lat += 30){ const pts = []; for (let lo = 0; lo <= 360; lo += 6) pts.push(llToXYZ(lat, lo, WR * 1.001)); worldSpin.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), gmat)); }
+for (let lon = 0; lon < 360; lon += 30){ const pts = []; for (let la = -90; la <= 90; la += 6) pts.push(llToXYZ(la, lon, WR * 1.001)); worldSpin.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), gmat)); }
+worldSpin.add(new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.SphereGeometry(WR * 1.002, 24, 18)), new THREE.LineBasicMaterial({ color: 0x1f5f9e, transparent: true, opacity: 0.12 })));
+
+/* marcadores */
+const worldMarkers = [];
+const maxF = Math.max(...WORLD.locs.map(l => l.funcs));
+WORLD.locs.forEach(loc => {
+  const hex = worstLoc(loc), col = new THREE.Color(hex), f = loc.funcs / maxF;
+  const p = llToXYZ(loc.lat, loc.lon, WR), nrm = p.clone().normalize();
+  const g = new THREE.Group(); worldSpin.add(g);
+  const core = new THREE.Mesh(new THREE.SphereGeometry(0.006 + 0.012 * f, 18, 14), new THREE.MeshBasicMaterial({ color: hex }));
+  core.position.copy(p); g.add(core);
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: hex, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }));
+  const gs = 0.04 + 0.075 * f; glow.scale.set(gs, gs, 1); glow.position.copy(p); g.add(glow);
+  const beamLen = 0.03 + 0.09 * f;
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.0012 + 0.003 * f, 0.0005, beamLen, 10), new THREE.MeshBasicMaterial({ color: hex, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false }));
+  beam.position.copy(nrm.clone().multiplyScalar(WR + beamLen / 2)); beam.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), nrm); g.add(beam);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.011 + 0.02 * f, 0.0015, 10, 40), new THREE.MeshBasicMaterial({ color: hex, transparent: true, opacity: 0.8 }));
+  ring.position.copy(p); ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), nrm); g.add(ring);
+  const lbl = makeLabel(`${loc.name} · ${loc.funcs}`, 0.016, { border: hex });
+  lbl.position.copy(nrm.clone().multiplyScalar(WR + beamLen + 0.03)); g.add(lbl);
+  const rec = { kind: 'loc', item: loc, g, core, glow, ring, beam, nrm, phase: Math.random() * 6.28, f };
+  [core, glow, ring].forEach(o => { o.userData.rec = rec; pickables.push(o); });
+  worldMarkers.push(rec);
+});
+
+/* hilos de conexión desde el hub + señales viajeras */
+const worldLinks = [];
+const hubLoc = WORLD.locs.find(l => l.id === WORLD.hub);
+const hubV = llToXYZ(hubLoc.lat, hubLoc.lon, WR);
+function slerpVec(a, b, t){ const an = a.clone().normalize(), bn = b.clone().normalize(); let d = THREE.MathUtils.clamp(an.dot(bn), -1, 1); const om = Math.acos(d); if (om < 1e-4) return an; const s0 = Math.sin((1 - t) * om) / Math.sin(om), s1 = Math.sin(t * om) / Math.sin(om); return an.multiplyScalar(s0).add(bn.multiplyScalar(s1)); }
+WORLD.locs.filter(l => l.id !== WORLD.hub).forEach(loc => {
+  const bV = llToXYZ(loc.lat, loc.lon, WR);
+  const pts = []; for (let i = 0; i <= 40; i++){ const t = i / 40; pts.push(slerpVec(hubV, bV, t).multiplyScalar(WR + Math.sin(Math.PI * t) * 0.06)); }
+  const curve = new THREE.CatmullRomCurve3(pts);
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0x69afe5, transparent: true, opacity: 0.5 }));
+  worldSpin.add(line);
+  const pulses = []; for (let k = 0; k < 3; k++){ const m = new THREE.Mesh(new THREE.SphereGeometry(0.004, 10, 8), new THREE.MeshBasicMaterial({ color: 0xcfe9ff })); worldSpin.add(m); pulses.push({ m, off: k / 3 }); }
+  worldLinks.push({ curve, pulses });
+});
+
+/* panel de detalle de una ubicación (flotante, canvas) */
+const locPanel = makePanel(560, 420, 0.3);
+locPanel.mesh.visible = false; worldGroup.add(locPanel.mesh);
+function drawLocPanel(loc){
+  const { ctx, c } = locPanel; const w = c.width, h = c.height; const hex = worstLoc(loc);
+  panelFrame(ctx, w, h, loc.name);
+  ctx.fillStyle = '#c8c6c4'; ctx.font = '400 24px "Segoe UI", Arial'; ctx.fillText(`${loc.funcs} funciones · estado general`, 40, 104);
+  ctx.beginPath(); ctx.arc(70, 150, 12, 0, 7); ctx.fillStyle = hex; ctx.fill();
+  const tot = loc.status.Alta + loc.status.Media + loc.status.Baja + loc.status.ok;
+  const rows = [['Fallo alta', loc.status.Alta, COL.Alta], ['Fallo media', loc.status.Media, COL.Media], ['Fallo baja', loc.status.Baja, COL.Baja], ['Correcto', loc.status.ok, COL.ok]];
+  let y = 190; ctx.font = '600 26px "Segoe UI", Arial';
+  rows.forEach(([n, v, c2]) => {
+    ctx.fillStyle = '#e1dfdd'; ctx.fillText(n, 40, y + 22);
+    const bw = 300, bx = 210; rr(ctx, bx, y + 2, bw, 26, 13); ctx.fillStyle = '#3b3a39'; ctx.fill();
+    rr(ctx, bx, y + 2, Math.max(6, bw * v / tot), 26, 13); ctx.fillStyle = c2; ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.textAlign = 'right'; ctx.fillText(String(v), w - 40, y + 24); ctx.textAlign = 'left';
+    y += 44;
+  });
+  ctx.fillStyle = '#ffb900'; ctx.font = '600 20px "Segoe UI", Arial'; ctx.fillText('DEMO · fundamentos (sin conectar)', 40, h - 24);
+  locPanel.tex.needsUpdate = true;
+}
+function selectLoc(rec){
+  selected = rec; selRing.visible = false;
+  drawLocPanel(rec.item);
+  locPanel.mesh.position.copy(rec.nrm.clone().multiplyScalar(WR + 0.14)).add(new THREE.Vector3(0, 0.05, 0));
+  locPanel.mesh.visible = true;
+  const l = rec.item, h = `<h2>${esc(l.name)}</h2><div class="meta">${l.funcs} funciones · estado general</div>`;
+  const rows = [['Fallo alta', l.status.Alta, COL.Alta], ['Fallo media', l.status.Media, COL.Media], ['Fallo baja', l.status.Baja, COL.Baja], ['Correcto', l.status.ok, COL.ok]];
+  detailEl.innerHTML = h + rows.map(([n, v, c]) => `<div class="chk"><span class="dot" style="background:${c}"></span> <b>${n}</b> · ${v}</div>`).join('') + '<div class="hint" style="margin-top:8px">Datos de demo (fundamentos). Con el tenant conectado, cada ubicación mostrará sus recursos reales.</div>';
+}
+
+function showWorld(on){
+  worldGroup.visible = on; map.visible = !on; catalog.visible = false;
+  base.visible = bEdges.visible = grid.visible = scan.visible = !on;
+  summary.mesh.visible = detail.mesh.visible = !on;
+  document.getElementById('pages').style.display = 'none';
+  if (!on){ locPanel.mesh.visible = false; }
+  selected = null; selRing.visible = false;
+  worldBtn.textContent = on ? 'Volver al mapa de red' : '🌐 Mapa mundial (ubicaciones)';
+  detailEl.innerHTML = on ? '<div class="hint">Globo de ubicaciones: el tamaño y brillo de cada luz indican lo desarrollada que está (número de funciones). El hilo lleva la señal desde el hub (México). Toca una luz para ver su estado.</div>' : '<div class="hint">Selecciona un recurso o un cable del mapa.</div>';
+}
+function animateWorld(s){
+  worldSpin.rotation.y += 0.0012;
+  for (const m of worldMarkers){ const k = 1 + 0.18 * Math.sin(s * 2.2 + m.phase); m.glow.scale.setScalar((0.04 + 0.075 * m.f) * k); m.ring.scale.setScalar(k); m.ring.material.opacity = 0.5 + 0.4 * Math.sin(s * 2.2 + m.phase); }
+  for (const L of worldLinks) for (const p of L.pulses) p.m.position.copy(L.curve.getPoint((s * 0.18 + p.off) % 1));
+}
+/* botón HUD */
+const worldBtn = document.createElement('button');
+worldBtn.id = 'worldBtn'; worldBtn.textContent = '🌐 Mapa mundial (ubicaciones)';
+worldBtn.style.cssText = 'width:100%;padding:9px;border-radius:14px;border:1px solid #2899f5;background:transparent;color:#6cb8f6;font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px';
+document.getElementById('cat').after(worldBtn);
+worldBtn.addEventListener('click', () => showWorld(!worldGroup.visible));
+
 renderer.setAnimationLoop((t, frame) => {
   const s = t / 1000;
   for (const r of nodeRecs){
@@ -1412,6 +1532,7 @@ renderer.setAnimationLoop((t, frame) => {
   if (moveBubble.visible !== xrOn){ moveBubble.visible = bubbleRing.visible = bubbleLbl.visible = xrOn; }
   if (xrOn){ moveBubble.scale.setScalar(1 + 0.12 * Math.sin(s * 3)); bubbleRing.rotation.z = s; }
   scan.position.z = -D / 2 + ((s * 0.1) % 1) * D;
+  if (worldGroup.visible) animateWorld(s);
   if (catalog.visible) for (const d of roadDots) d.m.position.set(d.x0 + ((s * d.speed + d.off) % 1) * (d.x1 - d.x0), d.y, d.z);
   if (insp && insp.auto) insp.spinner.rotation.y += 0.006;
   if (selRing.visible) selRing.material.opacity = 0.55 + 0.4 * Math.sin(s * 3);
