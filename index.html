@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tablero holográfico · Defender for Cloud (demo)</title>
+<style>
+  html,body{margin:0;height:100%;background:#050b14;color:#e6f1ff;font-family:"Segoe UI",system-ui,Arial,sans-serif;overflow:hidden}
+  #c{position:fixed;inset:0;display:block}
+  .card{position:fixed;background:rgba(8,20,36,.86);border:1px solid rgba(76,201,240,.35);border-radius:12px;padding:14px 16px;box-sizing:border-box}
+  #hud{top:16px;left:16px;width:340px}
+  h1{font-size:17px;margin:0 0 4px}
+  .sub{font-size:12px;color:#8fb3d9;margin-bottom:12px;line-height:1.4}
+  #xr{width:100%;padding:12px;border-radius:10px;border:0;background:#4cc9f0;color:#04121f;font-weight:700;font-size:15px;cursor:pointer}
+  #xr:disabled{background:#22334a;color:#8fa5c0;cursor:not-allowed}
+  #msg{font-size:12px;color:#ffd23f;margin-top:8px;line-height:1.45}
+  .legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;font-size:12px;color:#b9cde6}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+  #detail{top:16px;right:16px;width:390px;max-height:calc(100% - 32px);overflow:auto}
+  #detail h2{font-size:16px;margin:0 0 2px}
+  .meta{font-size:12px;color:#8fb3d9;margin-bottom:10px;line-height:1.45}
+  .chk{border-top:1px solid rgba(255,255,255,.08);padding:8px 0;font-size:13px;line-height:1.4}
+  .chk b{font-weight:600}
+  .tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:6px;margin-left:6px;background:#1c3350;color:#b9cde6}
+  .fix{color:#9fe8ff;font-size:12px;margin-top:3px}
+  .hint{font-size:12px;color:#8fb3d9;line-height:1.45}
+  .azbtn{display:inline-block;margin-top:12px;padding:7px 10px;border-radius:8px;border:1px dashed #3b5878;color:#8fa5c0;font-size:12px}
+  #tools{bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:6px;padding:8px;flex-wrap:wrap;justify-content:center}
+  #tools button{padding:8px 11px;border-radius:8px;border:1px solid #2c6e9e;background:#0f2238;color:#cfe2f7;font-size:13px;font-weight:600;cursor:pointer}
+  #tools button:hover{border-color:#4cc9f0}
+  #tools button.on{background:#4cc9f0;color:#04121f;border-color:#4cc9f0}
+  @media (max-width:860px){#hud{width:auto;right:16px}#detail{top:auto;bottom:16px;left:16px;right:16px;width:auto;max-height:42%}}
+</style>
+<script type="importmap">
+{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="hud" class="card">
+  <h1>Mapa de red holográfico · Defender for Cloud</h1>
+  <div class="sub">Prototipo v0.4 · <b>datos de ejemplo ficticios</b>. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
+  <button id="cat" style="width:100%;padding:9px;border-radius:10px;border:1px solid #4cc9f0;background:transparent;color:#9fe8ff;font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px">Ver catálogo de modelos 3D</button>
+  <button id="xr" disabled>Comprobando realidad mixta…</button>
+  <div id="msg"></div>
+  <div class="legend">
+    <span><span class="dot" style="background:#ff3b4e"></span>Fallo alta</span>
+    <span><span class="dot" style="background:#ff9f1c"></span>Fallo media</span>
+    <span><span class="dot" style="background:#ffd23f"></span>Fallo baja</span>
+    <span><span class="dot" style="background:#2ee59d"></span>Correcto</span>
+    <span><span class="dot" style="background:#7fc8f0"></span>Externo</span>
+  </div>
+</div>
+
+<div id="tools" class="card" style="display:none">
+  <button data-a="edit">✋ Modo maqueta</button>
+  <button data-a="pminus" title="Achicar la pieza seleccionada (tecla −)">Pieza −</button>
+  <button data-a="pplus" title="Agrandar la pieza seleccionada (tecla +)">Pieza +</button>
+  <button data-a="mminus">Maqueta −</button>
+  <button data-a="mplus">Maqueta +</button>
+  <button data-a="reset">↺ Restablecer</button>
+</div>
+<div id="detail" class="card"><div class="hint">Selecciona un recurso o un cable del mapa. Los cables gruesos y de color son conexiones con riesgo (por ejemplo, RDP abierto desde Internet o un Key Vault accesible por endpoint público). Los finos y verdes son conexiones correctas.</div></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* =====================================================================
+   DATOS DE EJEMPLO (ficticios). En la versión conectada se generan con
+   consultas a Azure Resource Graph (VNets, subredes, NSG, NIC, IP públicas,
+   private endpoints y recomendaciones de Defender for Cloud).
+   ===================================================================== */
+const DATA = {
+  tenant: 'Tenant DEMO · datos ficticios',
+  secureScore: 52,
+  compliance: [
+    { name: 'Microsoft cloud security benchmark', passed: 41, total: 63 },
+    { name: 'ISO/IEC 27001:2022', passed: 4, total: 12 },
+    { name: 'NIS2 (UE 2022/2555)', passed: 4, total: 9 },
+    { name: 'RGPD (UE 2016/679)', passed: 3, total: 6 }
+  ]
+};
+
+/* zonas: fuera de Azure, redes virtuales con subredes y servicios PaaS */
+const ZONES = [
+  { name: 'Fuera de Azure', kind: 'ext', x: [-0.555, -0.395], z: [-0.31, 0.31] },
+  { name: 'vnet-hub · 10.0.0.0/16', kind: 'vnet', x: [-0.37, -0.13], z: [-0.31, 0.31], subnets: [
+    { name: 'snet-mgmt · 10.0.1.0/24', z: [-0.255, -0.02] },
+    { name: 'GatewaySubnet · 10.0.255.0/27', z: [0.03, 0.29] } ] },
+  { name: 'vnet-prod · 10.1.0.0/16', kind: 'vnet', x: [-0.08, 0.255], z: [-0.31, 0.31], subnets: [
+    { name: 'snet-app · 10.1.1.0/24', z: [-0.255, -0.02] },
+    { name: 'snet-data · 10.1.2.0/24 · SIN NSG', z: [0.03, 0.29], warn: true } ] },
+  { name: 'Servicios PaaS · fuera de la VNet', kind: 'paas', x: [0.29, 0.555], z: [-0.31, 0.31] }
+];
+
+const NODES = [
+  { id: 'internet', name: 'Internet', type: 'internet', typeLabel: 'Red pública', pos: [-0.475, -0.23], checks: [] },
+  { id: 'oficina', name: 'Oficina', type: 'onprem', typeLabel: 'Red local (on-premises)', pos: [-0.475, 0.2], checks: [] },
+  { id: 'sub', name: 'Suscripción DEMO', type: 'subscription', typeLabel: 'Suscripción · identidad y gobierno', region: 'Global', pos: [-0.475, -0.01], checks: [
+    { t: 'Las cuentas con permisos de propietario deben tener MFA', s: 'Alta', d: 'IM', ok: false, fix: 'Exigir MFA con Acceso condicional (Entra ID) a los roles Owner.' },
+    { t: 'Las cuentas con permisos de escritura deben tener MFA', s: 'Alta', d: 'IM', ok: false, fix: 'Ampliar la directiva de Acceso condicional a Contributor y roles con escritura.' },
+    { t: 'Las cuentas con permisos de lectura deben tener MFA', s: 'Baja', d: 'IM', ok: true },
+    { t: 'Máximo 3 propietarios designados en la suscripción', s: 'Alta', d: 'PA', ok: true },
+    { t: 'Sin cuentas de invitado con permisos de propietario', s: 'Alta', d: 'PA', ok: true },
+    { t: 'Correo de contacto para incidencias de seguridad', s: 'Baja', d: 'IR', ok: false, fix: 'Defender for Cloud > Configuración del entorno > Notificaciones por correo.' },
+    { t: 'Plan Microsoft Defender for Servers habilitado', s: 'Alta', d: 'ES', ok: false, fix: 'Activar Defender for Servers (P1 o P2) en la suscripción.' }
+  ]},
+  /* hub */
+  { id: 'vm3', name: 'vm-dev-01', type: 'vm', typeLabel: 'Máquina virtual · Windows 11', group: 'rg-desarrollo', region: 'West Europe', pos: [-0.27, -0.13], checks: [
+    { t: 'Puertos de administración cerrados a Internet', s: 'Alta', d: 'NS', ok: true },
+    { t: 'Protección de endpoints instalada', s: 'Alta', d: 'ES', ok: true },
+    { t: 'Actualizaciones del sistema instaladas', s: 'Media', d: 'PV', ok: true },
+    { t: 'Vulnerabilidades de la máquina resueltas', s: 'Alta', d: 'PV', ok: true }
+  ]},
+  { id: 'nsgm', name: 'nsg-mgmt', type: 'nsg', typeLabel: 'Grupo de seguridad de red', group: 'rg-red', region: 'West Europe', pos: [-0.165, -0.2], checks: [
+    { t: 'Sin reglas entrantes abiertas a Internet', s: 'Alta', d: 'NS', ok: true },
+    { t: 'Registros de flujo habilitados', s: 'Baja', d: 'LT', ok: true }
+  ]},
+  { id: 'vpngw', name: 'vpngw-oficina', type: 'vpngw', typeLabel: 'VPN Gateway (sitio a sitio)', group: 'rg-red', region: 'West Europe', pos: [-0.25, 0.16], checks: [
+    { t: 'Túnel IPsec con IKEv2', s: 'Media', d: 'DP', ok: true },
+    { t: 'Registros de diagnóstico enviados a Log Analytics', s: 'Baja', d: 'LT', ok: false, fix: 'Configuración de diagnóstico: enviar los registros del túnel y del gateway a Log Analytics.' }
+  ]},
+  /* prod */
+  { id: 'pip1', name: 'pip-consola-01', type: 'pip', typeLabel: 'Dirección IP pública', group: 'rg-produccion', region: 'West Europe', pos: [0.0, -0.335], checks: [
+    { t: 'IP pública asociada a una VM con puertos de administración', s: 'Alta', d: 'NS', ok: false, fix: 'Eliminar la IP pública de la VM; administrar por la VPN o Azure Bastion.' },
+    { t: 'Protección DDoS en la red virtual', s: 'Media', d: 'NS', ok: false, fix: 'Valorar Azure DDoS Network Protection (o eliminar la exposición).' }
+  ]},
+  { id: 'vm1', name: 'vm-consola-01', type: 'vm', typeLabel: 'Máquina virtual · Windows Server 2022', group: 'rg-produccion', region: 'West Europe', pos: [0.0, -0.14], checks: [
+    { t: 'Puertos de administración (RDP 3389) cerrados a Internet', s: 'Alta', d: 'NS', ok: false, fix: 'Quitar la regla NSG Any→3389 y acceder con Azure Bastion.' },
+    { t: 'Puertos de administración protegidos con acceso JIT', s: 'Alta', d: 'NS', ok: false, fix: 'Habilitar Just-in-Time en Defender for Servers.' },
+    { t: 'Vulnerabilidades de la máquina resueltas', s: 'Alta', d: 'PV', ok: false, fix: 'Parchear los CVE listados en Defender Vulnerability Management.' },
+    { t: 'Actualizaciones del sistema instaladas', s: 'Media', d: 'PV', ok: false, fix: 'Programar parches con Azure Update Manager.' },
+    { t: 'Protección de endpoints instalada', s: 'Alta', d: 'ES', ok: true },
+    { t: 'Cifrado de disco / cifrado en host', s: 'Media', d: 'DP', ok: true }
+  ]},
+  { id: 'vm2', name: 'vm-consola-02', type: 'vm', typeLabel: 'Máquina virtual · Ubuntu 22.04', group: 'rg-produccion', region: 'West Europe', pos: [0.13, -0.14], checks: [
+    { t: 'Autenticación SSH solo con clave', s: 'Media', d: 'IM', ok: true },
+    { t: 'Puertos de administración (SSH 22) cerrados a Internet', s: 'Alta', d: 'NS', ok: true },
+    { t: 'Vulnerabilidades de la máquina resueltas', s: 'Media', d: 'PV', ok: false, fix: 'Actualizar openssl y los paquetes del kernel señalados.' },
+    { t: 'Actualizaciones del sistema instaladas', s: 'Media', d: 'PV', ok: true },
+    { t: 'Protección de endpoints instalada', s: 'Alta', d: 'ES', ok: true }
+  ]},
+  { id: 'nsga', name: 'nsg-app', type: 'nsg', typeLabel: 'Grupo de seguridad de red (snet-app)', group: 'rg-red', region: 'West Europe', pos: [0.22, -0.2], checks: [
+    { t: 'Regla entrante "Allow Any → 3389 (RDP)" desde Internet', s: 'Alta', d: 'NS', ok: false, fix: 'Borrar la regla o limitar el origen a la red de la VPN; usar JIT o Bastion.' },
+    { t: 'Registros de flujo habilitados', s: 'Baja', d: 'LT', ok: true }
+  ]},
+  { id: 'pesql', name: 'pe-sql', type: 'pe', typeLabel: 'Private Endpoint (hacia SQL)', group: 'rg-produccion', region: 'West Europe', pos: [0.02, 0.16], checks: [
+    { t: 'Conexión privada aprobada hacia sql-produccion', s: 'Media', d: 'NS', ok: true }
+  ]},
+  { id: 'nonsg', name: 'snet-data sin NSG', type: 'warn', typeLabel: 'Subred sin grupo de seguridad de red', group: 'rg-red', region: 'West Europe', pos: [0.19, 0.16], checks: [
+    { t: 'Subred asociada a un grupo de seguridad de red (NSG)', s: 'Media', d: 'NS', ok: false, fix: 'Crear nsg-data y asociarlo a snet-data: permitir solo 1433 desde snet-app.' }
+  ]},
+  /* PaaS */
+  { id: 'app1', name: 'app-portal-web', type: 'webapp', typeLabel: 'App Service (aplicación web)', group: 'rg-analytics', region: 'West Europe', pos: [0.36, -0.2], checks: [
+    { t: 'Accesible solo por HTTPS', s: 'Media', d: 'DP', ok: true },
+    { t: 'Versión mínima de TLS 1.2 o superior', s: 'Media', d: 'DP', ok: true },
+    { t: 'FTPS obligatorio o FTP deshabilitado', s: 'Media', d: 'DP', ok: false, fix: 'Configuración > Estado de FTP: solo FTPS o deshabilitado.' },
+    { t: 'Identidad administrada habilitada', s: 'Media', d: 'IM', ok: true }
+  ]},
+  { id: 'kv1', name: 'kv-secretos', type: 'keyvault', typeLabel: 'Key Vault', group: 'rg-analytics', region: 'West Europe', pos: [0.49, -0.2], checks: [
+    { t: 'Eliminación temporal (soft delete) habilitada', s: 'Media', d: 'DP', ok: true },
+    { t: 'Protección de purga habilitada', s: 'Media', d: 'DP', ok: false, fix: 'Activar purge protection (es irreversible: planificarlo).' },
+    { t: 'Acceso de red restringido (firewall o Private Link)', s: 'Media', d: 'NS', ok: false, fix: 'Desactivar acceso público y crear Private Endpoint.' },
+    { t: 'Modelo de permisos RBAC', s: 'Media', d: 'PA', ok: true }
+  ]},
+  { id: 'st1', name: 'st-datalake', type: 'storage', typeLabel: 'Cuenta de almacenamiento', group: 'rg-analytics', region: 'West Europe', pos: [0.36, -0.01], checks: [
+    { t: 'Acceso de red a la cuenta restringido', s: 'Media', d: 'NS', ok: false, fix: 'Firewall de Storage: solo VNet o Private Endpoint.' },
+    { t: 'Transferencia segura (solo HTTPS)', s: 'Alta', d: 'DP', ok: true },
+    { t: 'Acceso público anónimo a blobs deshabilitado', s: 'Media', d: 'NS', ok: true },
+    { t: 'Acceso con clave compartida deshabilitado', s: 'Media', d: 'IM', ok: false, fix: 'Usar Entra ID (RBAC) y desactivar las claves de acceso.' }
+  ]},
+  { id: 'st2', name: 'st-devlogs', type: 'storage', typeLabel: 'Cuenta de almacenamiento', group: 'rg-desarrollo', region: 'West Europe', pos: [0.49, -0.01], checks: [
+    { t: 'Transferencia segura (solo HTTPS)', s: 'Alta', d: 'DP', ok: true },
+    { t: 'Acceso de red a la cuenta restringido', s: 'Media', d: 'NS', ok: true },
+    { t: 'Acceso público anónimo a blobs deshabilitado', s: 'Media', d: 'NS', ok: true }
+  ]},
+  { id: 'sql1', name: 'sql-produccion', type: 'sqlserver', typeLabel: 'SQL Server lógico', group: 'rg-produccion', region: 'West Europe', pos: [0.36, 0.18], checks: [
+    { t: 'Administrador de Microsoft Entra configurado', s: 'Alta', d: 'IM', ok: false, fix: 'Asignar un grupo de Entra como administrador; evitar logins SQL.' },
+    { t: 'Auditoría habilitada', s: 'Baja', d: 'LT', ok: true },
+    { t: 'Acceso de red público deshabilitado', s: 'Media', d: 'NS', ok: false, fix: 'Desactivar el acceso público y usar solo Private Endpoint.' },
+    { t: 'Evaluación de vulnerabilidades SQL habilitada', s: 'Alta', d: 'PV', ok: true }
+  ]},
+  { id: 'db1', name: 'sqldb-clientes', type: 'sqldb', typeLabel: 'Base de datos SQL', group: 'rg-produccion', region: 'West Europe', pos: [0.49, 0.18], checks: [
+    { t: 'Cifrado de datos transparente (TDE) habilitado', s: 'Baja', d: 'DP', ok: true },
+    { t: 'Hallazgos de vulnerabilidad de la base de datos resueltos', s: 'Alta', d: 'PV', ok: false, fix: 'Revisar reglas fallidas: permisos excesivos y cuentas huérfanas.' }
+  ]}
+];
+
+/* cables: conexiones entre elementos (ok = correcta; si no, severidad) */
+const LINKS = [
+  { from: 'internet', to: 'pip1', proto: 'TCP 3389 · RDP', ok: false, s: 'Alta', d: 'NS', title: 'RDP abierto desde Internet', t: 'Cualquier IP de Internet puede intentar iniciar sesión por RDP en vm-consola-01 (regla de nsg-app: Any → 3389 Allow). Es la vía típica de ataques de fuerza bruta y ransomware.', fix: 'Cerrar 3389 a Internet; administrar por la VPN, Azure Bastion o JIT.' },
+  { from: 'pip1', to: 'vm1', proto: 'IP pública → NIC', ok: false, s: 'Alta', d: 'NS', title: 'IP pública directa en la VM', t: 'La interfaz de red de la VM queda expuesta a Internet a través de pip-consola-01.', fix: 'Desasociar pip-consola-01 de la NIC de la VM.' },
+  { from: 'oficina', to: 'vpngw', proto: 'IPsec IKEv2', ok: true, title: 'VPN sitio a sitio', t: 'Túnel cifrado entre la oficina y Azure.' },
+  { from: 'vpngw', to: 'vm1', proto: 'RDP por la VPN', ok: true, title: 'Administración por red privada', t: 'Ruta correcta para administrar la VM: desde la oficina, por el túnel VPN y el peering.' },
+  { fromPos: [-0.14, 0.005], toPos: [-0.07, 0.005], proto: 'VNet peering', ok: true, title: 'Peering vnet-hub ↔ vnet-prod', t: 'Las dos redes se comunican de forma privada por el backbone de Azure.' },
+  { from: 'vm1', to: 'kv1', proto: 'HTTPS · endpoint público', ok: false, s: 'Media', d: 'NS', title: 'Key Vault por endpoint público', t: 'vm-consola-01 lee secretos de kv-secretos saliendo por Internet: el firewall del Key Vault permite todas las redes.', fix: 'Crear un Private Endpoint del Key Vault y deshabilitar el acceso público.' },
+  { from: 'app1', to: 'kv1', proto: 'Identidad administrada · RBAC', ok: true, title: 'App → Key Vault con identidad administrada', t: 'Sin secretos en el código; permisos por rol.' },
+  { from: 'app1', to: 'sql1', proto: 'TDS 1433 · endpoint público', ok: false, s: 'Media', d: 'NS', title: 'App → SQL por endpoint público', t: 'La app conecta al SQL por su endpoint público: el servidor acepta conexiones desde fuera de la red privada.', fix: 'Integración de VNet en la app + Private Endpoint; desactivar el acceso público del SQL.' },
+  { from: 'vm2', to: 'pesql', proto: 'TDS 1433 privado', ok: true, title: 'VM → Private Endpoint de SQL', t: 'Tráfico a la base de datos por la red privada.' },
+  { from: 'pesql', to: 'sql1', proto: 'Private Link', ok: true, title: 'Private Link hacia SQL', t: 'Conexión privada aprobada hacia sql-produccion.' },
+  { from: 'sql1', to: 'db1', proto: 'Servidor → base de datos', ok: true, title: 'Base de datos alojada', t: 'sqldb-clientes vive en sql-produccion.' },
+  { from: 'vm2', to: 'st1', proto: 'HTTPS · clave compartida', ok: false, s: 'Media', d: 'IM', title: 'VM → Storage con clave compartida', t: 'Se accede con la clave de la cuenta en vez de con identidad de Entra ID: si la clave se filtra, da acceso total a los datos.', fix: 'Usar identidad administrada + RBAC y deshabilitar las claves.' },
+  { from: 'internet', to: 'st1', proto: 'HTTPS 443 · todas las redes', ok: false, s: 'Media', d: 'NS', title: 'Storage accesible desde Internet', t: 'El firewall de st-datalake permite todas las redes.', fix: 'Restringir a VNet o Private Endpoint.' },
+  { from: 'internet', to: 'app1', proto: 'HTTPS 443 · TLS 1.2', ok: true, title: 'Tráfico web público (esperado)', t: 'La aplicación se publica solo por HTTPS con TLS 1.2 o superior.' },
+  { from: 'vm3', to: 'st2', proto: 'Private Endpoint', ok: true, title: 'Dev → logs por red privada', t: 'Acceso a st-devlogs sin salir a Internet.' }
+];
+
+/* ===================== utilidades ===================== */
+const SEV = { Alta: 3, Media: 2, Baja: 1 };
+const COL = { Alta: '#ff3b4e', Media: '#ff9f1c', Baja: '#ffd23f', ok: '#2ee59d', ext: '#7fc8f0' };
+function worstSev(item){ let w = null; for (const c of item.checks) if (!c.ok && (!w || SEV[c.s] > SEV[w])) w = c.s; return w; }
+function statusColor(item){ if (!item.checks.length) return COL.ext; const w = worstSev(item); return w ? COL[w] : COL.ok; }
+function fails(item){ return item.checks.filter(c => !c.ok).length; }
+function sortChecks(list){ return [...list].sort((a, b) => (a.ok - b.ok) || ((SEV[b.s] || 0) - (SEV[a.s] || 0))); }
+function esc(s){ return String(s).replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch])); }
+function rr(ctx, x, y, w, h, r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+function wrap(ctx, text, maxW){ const words = text.split(' '); const lines = []; let line = ''; for (const w of words){ const test = line ? line + ' ' + w : w; if (ctx.measureText(test).width > maxW && line){ lines.push(line); line = w; } else line = test; } if (line) lines.push(line); return lines; }
+function metaLine(it){ return [it.typeLabel, it.route, it.group, it.region].filter(Boolean).join(' · '); }
+
+/* ===================== escena ===================== */
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.xr.enabled = true;
+const BG = new THREE.Color(0x050b14);
+const scene = new THREE.Scene(); scene.background = BG;
+
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.01, 30);
+camera.position.set(0, 0.92, 0.98);
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0, 0.1, -0.07);
+controls.enableDamping = true; controls.minDistance = 0.3; controls.maxDistance = 2.8; controls.maxPolarAngle = Math.PI * 0.49;
+
+scene.add(new THREE.HemisphereLight(0xbfe6ff, 0x0a1422, 1.1));
+const dl = new THREE.DirectionalLight(0xffffff, 1.2); dl.position.set(0.5, 1.5, 0.8); scene.add(dl);
+
+const board = new THREE.Group(); scene.add(board);
+const W = 1.14, D = 0.7;
+const base = new THREE.Mesh(new THREE.BoxGeometry(W, 0.02, D), new THREE.MeshStandardMaterial({ color: 0x0b1726, transparent: true, opacity: 0.9, roughness: 0.6 }));
+base.position.y = -0.01; board.add(base);
+const bEdges = new THREE.LineSegments(new THREE.EdgesGeometry(base.geometry), new THREE.LineBasicMaterial({ color: 0x4cc9f0, transparent: true, opacity: 0.8 }));
+bEdges.position.copy(base.position); board.add(bEdges);
+const grid = new THREE.GridHelper(1, 28, 0x1f4f7a, 0x16324f); grid.scale.set(W, 1, D); grid.position.y = 0.0006;
+grid.material.transparent = true; grid.material.opacity = 0.35; board.add(grid);
+const scan = new THREE.Mesh(new THREE.PlaneGeometry(W, 0.006), new THREE.MeshBasicMaterial({ color: 0x4cc9f0, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false }));
+scan.rotation.x = -Math.PI / 2; scan.position.y = 0.003; board.add(scan);
+
+/* etiquetas */
+function makeTextCanvas(text, { size = 44, color = '#e6f1ff', bg = 'rgba(8,20,36,0.85)', border = '#4cc9f0', pad = 14, weight = 600 } = {}){
+  const c = document.createElement('canvas'); const ctx = c.getContext('2d');
+  const font = `${weight} ${size}px "Segoe UI", Arial, sans-serif`; ctx.font = font;
+  const w = Math.ceil(ctx.measureText(text).width) + pad * 2, h = size + pad * 2;
+  c.width = w; c.height = h; ctx.font = font;
+  if (bg){ rr(ctx, 1, 1, w - 2, h - 2, 12); ctx.fillStyle = bg; ctx.fill(); ctx.strokeStyle = border; ctx.lineWidth = 2; ctx.stroke(); }
+  ctx.fillStyle = color; ctx.textBaseline = 'middle'; ctx.fillText(text, pad, h / 2 + 2);
+  return c;
+}
+function makeLabel(text, height = 0.016, opts){
+  const c = makeTextCanvas(text, opts); const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthWrite: false, depthTest: false, transparent: true }));
+  s.renderOrder = 10; s.scale.set(height * c.width / c.height, height, 1); return s;
+}
+function makeFlatLabel(text, height = 0.02, opts){
+  const c = makeTextCanvas(text, opts); const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(height * c.width / c.height, height), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }));
+  m.rotation.x = -Math.PI / 2; return m;
+}
+function flatPlate(x0, x1, z0, z1, y, color, opacity, edgeColor, dashed){
+  const w = x1 - x0, d = z1 - z0;
+  const p = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false }));
+  p.rotation.x = -Math.PI / 2; p.position.set((x0 + x1) / 2, y, (z0 + z1) / 2); T.add(p);
+  const pts = [[x0, z0], [x1, z0], [x1, z1], [x0, z1], [x0, z0]].map(([x, z]) => new THREE.Vector3(x, y + 0.0004, z));
+  const mat = dashed ? new THREE.LineDashedMaterial({ color: edgeColor, dashSize: 0.012, gapSize: 0.008 }) : new THREE.LineBasicMaterial({ color: edgeColor });
+  const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat); if (dashed) l.computeLineDistances(); T.add(l);
+}
+function placeFlatLabel(text, x0, z, height, opts){
+  const l = makeFlatLabel(text, height, opts); l.position.set(x0 + l.geometry.parameters.width / 2, 0.004, z); T.add(l); return l;
+}
+
+/* grupos: mapa y catálogo (se alternan) */
+const map = new THREE.Group(); board.add(map);
+const catalog = new THREE.Group(); catalog.visible = false; board.add(catalog);
+let T = map;
+
+/* zonas */
+for (const zn of ZONES){
+  const [x0, x1] = zn.x, [z0, z1] = zn.z;
+  if (zn.kind === 'vnet'){
+    flatPlate(x0, x1, z0, z1, 0.001, 0x0f2d4b, 0.6, 0x4cc9f0, false);
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, 0.016, z1 - z0), new THREE.MeshBasicMaterial({ color: 0x4cc9f0, transparent: true, opacity: 0.05, depthWrite: false }));
+    wall.position.set((x0 + x1) / 2, 0.008, (z0 + z1) / 2); T.add(wall);
+    const we = new THREE.LineSegments(new THREE.EdgesGeometry(wall.geometry), new THREE.LineBasicMaterial({ color: 0x4cc9f0, transparent: true, opacity: 0.6 }));
+    we.position.copy(wall.position); T.add(we);
+    placeFlatLabel(zn.name, x0 + 0.008, z0 + 0.024, 0.022, { bg: null, color: '#9fe8ff', size: 40, weight: 700 });
+    for (const sn of zn.subnets){
+      flatPlate(x0 + 0.01, x1 - 0.01, sn.z[0], sn.z[1], 0.0025, sn.warn ? 0x3a2a10 : 0x173f63, 0.65, sn.warn ? 0xff9f1c : 0x2c6e9e, !!sn.warn);
+      placeFlatLabel(sn.name, x0 + 0.016, sn.z[1] - 0.013, 0.017, { bg: null, color: sn.warn ? '#ffbf69' : '#a8dcff', size: 40 });
+    }
+  } else {
+    flatPlate(x0, x1, z0, z1, 0.001, zn.kind === 'paas' ? 0x1a2446 : 0x141c2a, 0.6, zn.kind === 'paas' ? 0x8a7cf0 : 0x5f7a99, true);
+    placeFlatLabel(zn.name, x0 + 0.008, z1 - 0.014, 0.018, { bg: null, color: zn.kind === 'paas' ? '#c9c1ff' : '#b9cde6', size: 40 });
+  }
+}
+
+/* ===================== modelos 3D reconocibles ===================== */
+const pickables = [], nodeRecs = [], linkRecs = [], byId = {};
+const texCache = {};
+function canvasTex(key, w, h, draw){
+  if (texCache[key]) return texCache[key];
+  const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; texCache[key] = t; return t;
+}
+const screenTex = hex => canvasTex('scr' + hex, 256, 172, (x, w, h) => {
+  x.fillStyle = '#0b1f33'; x.fillRect(0, 0, w, h);
+  x.fillStyle = hex; x.fillRect(0, 0, w, 30);
+  x.fillStyle = '#9fb7d3'; [56, 82, 108].forEach((y, i) => x.fillRect(18, y, [190, 140, 165][i], 10));
+  x.fillStyle = hex; x.globalAlpha = 0.8; [[30, 40], [60, 25], [90, 32], [120, 18]].forEach(([px, ph]) => x.fillRect(px + 100, 160 - ph, 18, ph)); x.globalAlpha = 1;
+  x.strokeStyle = '#2b4a6b'; x.lineWidth = 6; x.strokeRect(0, 0, w, h);
+});
+const browserTex = hex => canvasTex('brw' + hex, 256, 180, (x, w, h) => {
+  x.fillStyle = '#10243a'; x.fillRect(0, 0, w, h);
+  x.fillStyle = '#1f3a58'; x.fillRect(0, 0, w, 34);
+  ['#ff5f57', '#febc2e', '#28c840'].forEach((c, i) => { x.fillStyle = c; x.beginPath(); x.arc(18 + i * 18, 17, 6, 0, 7); x.fill(); });
+  x.fillStyle = '#0b1a2b'; rr(x, 80, 9, 160, 17, 8); x.fill();
+  x.fillStyle = hex; x.fillRect(86, 15, 10, 6);
+  x.fillStyle = hex; x.globalAlpha = 0.85; x.fillRect(16, 50, 100, 60); x.globalAlpha = 1;
+  x.fillStyle = '#9fb7d3'; [52, 72, 92, 128, 148].forEach((y, i) => x.fillRect(i < 3 ? 130 : 16, y, i < 3 ? 108 : 220, 9));
+  x.strokeStyle = '#2b4a6b'; x.lineWidth = 6; x.strokeRect(0, 0, w, h);
+});
+const windowsTex = () => canvasTex('bld', 128, 192, (x, w, h) => {
+  x.fillStyle = '#22374f'; x.fillRect(0, 0, w, h);
+  for (let r = 0; r < 7; r++) for (let c = 0; c < 4; c++){ x.fillStyle = (r * 3 + c * 5) % 7 < 4 ? '#ffd98a' : '#0f1d2c'; x.fillRect(12 + c * 28, 12 + r * 26, 18, 16); }
+});
+const textTex = (txt, fg, bg) => canvasTex('t' + txt + fg + bg, 128, 80, (x, w, h) => {
+  if (bg){ x.fillStyle = bg; rr(x, 0, 0, w, h, 16); x.fill(); }
+  x.fillStyle = fg; x.font = '800 54px "Segoe UI", Arial'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(txt, w / 2, h / 2 + 3);
+});
+
+function buildModel(type, hex){
+  const col = new THREE.Color(hex);
+  const g = new THREE.Group(), shells = [], accents = [];
+  const shell = (c = 0x3b5675) => { const m = new THREE.MeshStandardMaterial({ color: c, emissive: col, emissiveIntensity: 0.035, roughness: 0.5, metalness: 0.4 }); shells.push(m); return m; };
+  const accent = () => { const m = new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.55, roughness: 0.3 }); accents.push(m); return m; };
+  const add = (geo, mat, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); g.add(m); return m; };
+  const B = (w, h, d) => new THREE.BoxGeometry(w, h, d), C = (rt, rb, h, s = 28) => new THREE.CylinderGeometry(rt, rb, h, s);
+  let h = 0.04;
+  switch (type){
+    case 'vm': { // monitor + torre
+      const sh = shell(), scr = new THREE.MeshBasicMaterial({ map: screenTex(hex) });
+      add(B(0.05, 0.034, 0.004), [sh, sh, sh, sh, scr, sh], -0.008, 0.043, 0);
+      add(B(0.006, 0.022, 0.004), sh, -0.008, 0.016, -0.002);
+      add(B(0.024, 0.003, 0.016), sh, -0.008, 0.0015, -0.002);
+      add(B(0.017, 0.044, 0.036), shell(0x22364f), 0.03, 0.022, -0.002);
+      add(new THREE.SphereGeometry(0.0022, 10, 8), accent(), 0.03, 0.036, 0.0165);
+      for (let i = 0; i < 3; i++) add(B(0.011, 0.0012, 0.001), shell(0x0f1d2c), 0.03, 0.012 + i * 0.004, 0.0165);
+      h = 0.06; break;
+    }
+    case 'sqldb': { // cilindro clásico de base de datos con bandas
+      add(C(0.02, 0.02, 0.038), shell(), 0, 0.019, 0);
+      add(C(0.0202, 0.0202, 0.0015), accent(), 0, 0.0385, 0);
+      [0.013, 0.026].forEach(y => add(new THREE.TorusGeometry(0.0202, 0.0011, 8, 40), accent(), 0, y, 0, Math.PI / 2));
+      h = 0.04; break;
+    }
+    case 'sqlserver': { // pila de discos de base de datos
+      const a = accent();
+      [0.0075, 0.0235, 0.0395].forEach(y => { add(C(0.023, 0.023, 0.014), shell(), 0, y, 0); add(new THREE.TorusGeometry(0.0232, 0.0012, 8, 44), a, 0, y + 0.0072, 0, Math.PI / 2); });
+      h = 0.048; break;
+    }
+    case 'storage': { // archivador con cajones
+      add(B(0.05, 0.042, 0.036), shell(), 0, 0.021, 0);
+      const a = accent();
+      [0.008, 0.021, 0.034].forEach(y => { add(B(0.044, 0.0105, 0.0015), shell(0x34506f), 0, y, 0.0185); add(B(0.012, 0.0022, 0.0025), a, 0, y, 0.0205); });
+      h = 0.044; break;
+    }
+    case 'keyvault': { // caja fuerte con rueda y manilla
+      add(B(0.042, 0.042, 0.036), shell(0x1d2f45), 0, 0.021, 0);
+      add(B(0.035, 0.035, 0.0015), shell(0x3a5878), 0, 0.021, 0.0185);
+      add(C(0.008, 0.008, 0.003, 24), accent(), -0.002, 0.022, 0.0205, Math.PI / 2);
+      add(C(0.0025, 0.0025, 0.004, 12), shell(0x0f1d2c), -0.002, 0.022, 0.0225, Math.PI / 2);
+      add(B(0.0025, 0.013, 0.003), accent(), 0.013, 0.021, 0.0205);
+      [0.01, 0.032].forEach(y => add(C(0.0018, 0.0018, 0.007, 10), shell(0x0f1d2c), -0.0205, y, 0.0185));
+      h = 0.044; break;
+    }
+    case 'webapp': { // ventana de navegador sobre soporte
+      const sh = shell(), br = new THREE.MeshBasicMaterial({ map: browserTex(hex) });
+      add(B(0.056, 0.04, 0.003), [sh, sh, sh, sh, br, sh], 0, 0.026, 0, -0.12);
+      add(B(0.006, 0.01, 0.004), sh, 0, 0.005, -0.003);
+      add(B(0.028, 0.002, 0.016), sh, 0, 0.001, -0.002);
+      h = 0.047; break;
+    }
+    case 'internet': { // nube
+      const m = new THREE.MeshStandardMaterial({ color: 0xd6ecff, emissive: col, emissiveIntensity: 0.25, roughness: 0.8 }); shells.push(m);
+      [[-0.019, 0, 0, 0.014], [0, 0.007, 0, 0.019], [0.02, 0, 0, 0.014], [-0.009, -0.004, 0.008, 0.012], [0.011, -0.004, 0.008, 0.012], [0, -0.003, -0.008, 0.014]]
+        .forEach(([x, y, z, r]) => add(new THREE.SphereGeometry(r, 20, 14), m, x, 0.038 + y, z));
+      h = 0.064; break;
+    }
+    case 'onprem': { // edificio de oficinas
+      const win = new THREE.MeshStandardMaterial({ map: windowsTex(), emissive: 0xffffff, emissiveMap: windowsTex(), emissiveIntensity: 0.35 }), roof = shell(0x1b2b3f);
+      add(B(0.04, 0.062, 0.034), [win, win, roof, roof, win, win], 0, 0.031, 0);
+      add(B(0.044, 0.003, 0.038), roof, 0, 0.0635, 0);
+      add(C(0.0008, 0.0008, 0.014, 6), roof, 0.012, 0.072, 0);
+      h = 0.08; break;
+    }
+    case 'vpngw': { // túnel con candado
+      const s = new THREE.Shape(); s.absarc(0, 0, 0.025, 0, Math.PI, false); s.lineTo(-0.017, 0); s.absarc(0, 0, 0.017, Math.PI, 0, true); s.lineTo(0.025, 0);
+      const tg = new THREE.ExtrudeGeometry(s, { depth: 0.024, bevelEnabled: false }); tg.translate(0, 0, -0.012);
+      add(tg, shell(), 0, 0.002, 0);
+      add(B(0.056, 0.002, 0.03), shell(0x1b2b3f), 0, 0.001, 0);
+      const a = accent();
+      [0.0125, -0.0125].forEach(z => add(new THREE.TorusGeometry(0.021, 0.0011, 8, 30, Math.PI), a, 0, 0.002, z));
+      add(B(0.012, 0.01, 0.005), a, 0, 0.008, 0.004);
+      add(new THREE.TorusGeometry(0.0038, 0.0011, 8, 16, Math.PI), a, 0, 0.013, 0.004);
+      h = 0.03; break;
+    }
+    case 'pip': { // chincheta de ubicación con "IP"
+      const a = accent();
+      add(new THREE.SphereGeometry(0.012, 24, 16), a, 0, 0.034, 0);
+      add(new THREE.ConeGeometry(0.0105, 0.024, 24), a, 0, 0.018, 0, Math.PI);
+      add(new THREE.PlaneGeometry(0.016, 0.01), new THREE.MeshBasicMaterial({ map: textTex('IP', '#04121f', null), transparent: true }), 0, 0.034, 0.0122);
+      add(C(0.008, 0.008, 0.0015, 20), shell(0x1b2b3f), 0, 0.00075, 0);
+      h = 0.047; break;
+    }
+    case 'nsg': { // escudo
+      const s = new THREE.Shape();
+      s.moveTo(-0.016, 0.019); s.lineTo(0.016, 0.019); s.lineTo(0.016, 0.002); s.quadraticCurveTo(0.015, -0.015, 0, -0.023); s.quadraticCurveTo(-0.015, -0.015, -0.016, 0.002); s.closePath();
+      const eg = new THREE.ExtrudeGeometry(s, { depth: 0.004, bevelEnabled: false }); eg.translate(0, 0, -0.002);
+      add(eg, accent(), 0, 0.027, 0);
+      const inner = new THREE.ShapeGeometry(s); inner.scale(0.62, 0.62, 1);
+      add(inner, shell(0x0f2238), 0, 0.028, 0.0022);
+      add(B(0.003, 0.012, 0.0008), accent(), 0, 0.029, 0.0026);
+      add(B(0.022, 0.003, 0.012), shell(0x1b2b3f), 0, 0.0015, 0);
+      h = 0.047; break;
+    }
+    case 'pe': { // enchufe (conexión privada)
+      add(C(0.009, 0.01, 0.018, 24), shell(), 0, 0.009, 0);
+      const a = accent();
+      add(new THREE.TorusGeometry(0.009, 0.0012, 8, 30), a, 0, 0.018, 0, Math.PI / 2);
+      [-0.0038, 0.0038].forEach(x => add(B(0.0024, 0.009, 0.0016), a, x, 0.0225, 0));
+      h = 0.027; break;
+    }
+    case 'warn': { // señal de advertencia
+      const s = new THREE.Shape(); s.moveTo(0, 0.019); s.lineTo(0.019, -0.013); s.lineTo(-0.019, -0.013); s.closePath();
+      const tg = new THREE.ExtrudeGeometry(s, { depth: 0.003, bevelEnabled: false }); tg.translate(0, 0, -0.0015);
+      add(tg, accent(), 0, 0.036, 0);
+      const dk = new THREE.MeshBasicMaterial({ color: 0x1a1206 });
+      add(B(0.0032, 0.013, 0.001), dk, 0, 0.039, 0.0018); add(B(0.0032, 0.0032, 0.001), dk, 0, 0.0285, 0.0018);
+      add(C(0.0018, 0.0018, 0.024, 10), shell(0x4a5a6c), 0, 0.012, -0.002);
+      add(C(0.007, 0.007, 0.002, 16), shell(0x1b2b3f), 0, 0.001, -0.002);
+      h = 0.056; break;
+    }
+    case 'subscription': { // identidad: busto con credencial sobre pedestal
+      add(C(0.026, 0.03, 0.012, 6), shell(0x1b2b3f), 0, 0.006, 0);
+      const sh = shell(0x3a5878);
+      const sho = add(new THREE.SphereGeometry(0.019, 28, 16, 0, Math.PI * 2, 0, Math.PI / 2), sh, 0, 0.012, 0); sho.scale.set(1, 1.05, 0.75);
+      add(C(0.005, 0.006, 0.008, 16), sh, 0, 0.034, 0);
+      add(new THREE.SphereGeometry(0.0095, 20, 16), sh, 0, 0.046, 0);
+      add(B(0.009, 0.007, 0.0012), accent(), 0.006, 0.022, 0.0128, -0.35);
+      h = 0.058; break;
+    }
+  }
+  return { g, h, shells, accents };
+}
+
+function addNode(item){
+  const statusHex = item.statusOverride || statusColor(item), col = new THREE.Color(statusHex);
+  const grp = new THREE.Group(); grp.position.set(item.pos[0], 0, item.pos[1]); T.add(grp);
+  const { g, h, shells, accents } = buildModel(item.type, statusHex); grp.add(g);
+  const glow = new THREE.Mesh(new THREE.RingGeometry(0.03, 0.034, 40), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false }));
+  glow.rotation.x = -Math.PI / 2; glow.position.y = 0.0035; grp.add(glow);
+  const orb = new THREE.Mesh(new THREE.SphereGeometry(0.0072, 20, 14), new THREE.MeshBasicMaterial({ color: col }));
+  const topY = h + 0.018; orb.position.y = topY; grp.add(orb);
+  const n = fails(item);
+  const txt = item.labelText || (!item.checks.length ? item.name : n ? `${item.name}  ✖ ${n}` : `${item.name}  ✔`);
+  const label = makeLabel(txt, 0.015, { border: statusHex }); label.position.y = topY + 0.021; grp.add(label);
+  const rec = { kind: 'node', item, grp, orb, shells, accents, baseY: topY, anchorY: Math.min(h * 0.5, 0.035), phase: Math.random() * 6.28, bad: n > 0 };
+  grp.traverse(o => { if (o.isMesh && o !== glow){ o.userData.rec = rec; pickables.push(o); } });
+  nodeRecs.push(rec); byId[item.id] = rec;
+  return rec;
+}
+NODES.forEach(addNode);
+
+/* catálogo de modelos (para revisar el diseño de cada tipo) */
+T = catalog;
+const CATALOG = [
+  ['vm', 'Máquina virtual', 'Monitor y torre. La barra superior de la pantalla y el LED de la torre toman el color del estado.'],
+  ['sqlserver', 'SQL Server', 'Pila de discos de base de datos: el servidor lógico que aloja bases de datos.'],
+  ['sqldb', 'Base de datos SQL', 'El cilindro clásico de base de datos; las bandas indican el estado.'],
+  ['storage', 'Cuenta de almacenamiento', 'Archivador con cajones (blobs, archivos, colas, tablas). Las manillas indican el estado.'],
+  ['keyvault', 'Key Vault', 'Caja fuerte de secretos, claves y certificados. La rueda y la manilla indican el estado.'],
+  ['webapp', 'App Service', 'Ventana de navegador: aplicación web publicada.'],
+  ['vpngw', 'VPN Gateway', 'Túnel con candado: conexión cifrada entre redes.'],
+  ['nsg', 'Grupo de seguridad de red', 'Escudo: las reglas que permiten o bloquean tráfico en una subred o NIC.'],
+  ['pip', 'IP pública', 'Chincheta con "IP": punto de entrada desde Internet.'],
+  ['pe', 'Private Endpoint', 'Enchufe: conexión privada a un servicio PaaS desde la VNet.'],
+  ['warn', 'Falta un control', 'Señal de advertencia: algo que debería existir y no está (p. ej. subred sin NSG).'],
+  ['subscription', 'Suscripción / identidad', 'Busto con credencial: controles de identidad y gobierno (MFA, propietarios…).'],
+  ['internet', 'Internet', 'Nube: red pública, fuera de tu control.'],
+  ['onprem', 'Oficina / on-premises', 'Edificio: red local de la empresa.']
+];
+CATALOG.forEach(([type, name, desc], i) => {
+  const col = i % 5, row = Math.floor(i / 5);
+  const statusOverride = type === 'internet' || type === 'onprem' ? COL.ext : type === 'warn' ? COL.Media : COL.ok;
+  addNode({ id: 'cat-' + type, name, type, typeLabel: 'Catálogo de modelos', desc, checks: [], statusOverride, labelText: name, pos: [-0.42 + col * 0.21, -0.2 + row * 0.2] });
+});
+const catTitle = makeFlatLabel('Catálogo de modelos 3D · toca uno para ver qué representa', 0.024, { bg: null, color: '#9fe8ff', size: 40, weight: 700 });
+catTitle.position.set(0, 0.003, 0.3); catalog.add(catTitle);
+T = map;
+
+/* cables */
+function endPoint(id, pos){
+  if (pos) return new THREE.Vector3(pos[0], 0.012, pos[1]);
+  const r = byId[id]; return new THREE.Vector3(r.grp.position.x, r.anchorY, r.grp.position.z);
+}
+function addLink(L){
+  const a = endPoint(L.from, L.fromPos), b = endPoint(L.to, L.toPos);
+  const dist = a.distanceTo(b);
+  const mid = a.clone().add(b).multiplyScalar(0.5); mid.y = Math.max(a.y, b.y) + Math.min(0.16, 0.035 + dist * 0.2);
+  const curve = new THREE.QuadraticBezierCurve3(a, mid, b);
+  const hex = L.ok ? COL.ok : COL[L.s];
+  const baseOpacity = L.ok ? 0.45 : 0.85;
+  const tubeMat = new THREE.MeshBasicMaterial({ color: hex, transparent: true, opacity: baseOpacity, depthWrite: false });
+  const radius = L.ok ? 0.0016 : 0.0028;
+  const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 48, radius, 6, false), tubeMat); map.add(tube);
+  const hit = new THREE.Mesh(new THREE.TubeGeometry(curve, 24, 0.011, 5, false), new THREE.MeshBasicMaterial({ visible: false })); map.add(hit);
+  const pulses = [];
+  const np = L.ok ? 2 : 4;
+  for (let i = 0; i < np; i++){
+    const p = new THREE.Mesh(new THREE.SphereGeometry(L.ok ? 0.0032 : 0.0045, 10, 8), new THREE.MeshBasicMaterial({ color: hex }));
+    map.add(p); pulses.push({ m: p, off: i / np });
+  }
+  const label = makeLabel((L.ok ? '' : '⚠ ') + L.proto, 0.012, { border: hex, size: 40 });
+  label.position.copy(curve.getPoint(0.5)); label.position.y += 0.014; label.visible = !L.ok; map.add(label);
+  const fromName = L.from ? byId[L.from].item.name : 'vnet-hub', toName = L.to ? byId[L.to].item.name : 'vnet-prod';
+  const item = { name: L.title, typeLabel: 'Conexión · ' + L.proto, route: `${fromName} → ${toName}`, checks: [{ t: L.t, ok: L.ok, s: L.s, d: L.d, fix: L.fix }] };
+  const rec = { kind: 'link', item, tube, hit, tubeMat, label, pulses, curve, ok: L.ok, baseOpacity, radius, L, speed: L.ok ? 0.16 : 0.32 };
+  hit.userData.rec = rec; pickables.push(hit); linkRecs.push(rec);
+}
+LINKS.forEach(addLink);
+function linkCurve(L){
+  const a = endPoint(L.from, L.fromPos), b = endPoint(L.to, L.toPos);
+  const mid = a.clone().add(b).multiplyScalar(0.5); mid.y = Math.max(a.y, b.y) + Math.min(0.16, 0.035 + a.distanceTo(b) * 0.2);
+  return new THREE.QuadraticBezierCurve3(a, mid, b);
+}
+function rebuildLink(l){
+  l.curve = linkCurve(l.L);
+  l.tube.geometry.dispose(); l.tube.geometry = new THREE.TubeGeometry(l.curve, 48, l.radius, 6, false);
+  l.hit.geometry.dispose(); l.hit.geometry = new THREE.TubeGeometry(l.curve, 24, 0.011, 5, false);
+  l.label.position.copy(l.curve.getPoint(0.5)); l.label.position.y += 0.014;
+}
+const nodeLinks = {};
+for (const l of linkRecs) for (const id of [l.L.from, l.L.to]) if (id) (nodeLinks[id] = nodeLinks[id] || []).push(l);
+for (const r of nodeRecs){ r.s = 1; r.anchorY0 = r.anchorY; }
+
+/* barra de herramientas 3D (útil en RM; en escritorio hay otra en HTML) */
+const TOOLS = [['move', '⟲ Colocar'], ['edit', '✋ Editar'], ['pminus', 'Pieza −'], ['pplus', 'Pieza +'], ['mminus', 'Maqueta −'], ['mplus', 'Maqueta +'], ['reset', '↺ Restablecer']];
+const toolBtns = {};
+const toolbar = new THREE.Group(); board.add(toolbar);
+TOOLS.forEach(([action, text], i) => {
+  const bw = 0.145, x = -((TOOLS.length - 1) * 0.157) / 2 + i * 0.157;
+  const m = new THREE.Mesh(new THREE.BoxGeometry(bw, 0.012, 0.042), new THREE.MeshStandardMaterial({ color: 0x14324f, emissive: 0x4cc9f0, emissiveIntensity: 0.25 }));
+  m.position.set(x, 0.006, D / 2 + 0.045); m.userData.action = action; toolbar.add(m); pickables.push(m);
+  const l = makeFlatLabel(text, 0.019, { bg: null, size: 40 }); l.position.set(x, 0.0125, D / 2 + 0.045); toolbar.add(l);
+  toolBtns[action] = m;
+});
+const selRing = new THREE.Mesh(new THREE.RingGeometry(0.036, 0.043, 48), new THREE.MeshBasicMaterial({ color: 0x4cc9f0, transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
+selRing.rotation.x = -Math.PI / 2; selRing.visible = false; board.add(selRing);
+
+const placeHint = makeLabel('Mira tu mesa y pellizca para fijar el tablero', 0.03, { size: 44 });
+placeHint.position.set(0, 0.45, 0); placeHint.visible = false; board.add(placeHint);
+
+/* ===================== paneles flotantes ===================== */
+function makePanel(wPx, hPx, wM){
+  const c = document.createElement('canvas'); c.width = wPx; c.height = hPx;
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(wM, wM * hPx / wPx), new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide, depthWrite: false }));
+  return { c, ctx: c.getContext('2d'), tex, mesh };
+}
+function panelFrame(ctx, w, h, title){
+  ctx.clearRect(0, 0, w, h);
+  rr(ctx, 4, 4, w - 8, h - 8, 28); ctx.fillStyle = 'rgba(6,18,32,0.9)'; ctx.fill();
+  ctx.strokeStyle = 'rgba(76,201,240,0.85)'; ctx.lineWidth = 4; ctx.stroke();
+  ctx.fillStyle = '#e6f1ff'; ctx.font = '700 40px "Segoe UI", Arial'; ctx.textBaseline = 'alphabetic';
+  const t = wrap(ctx, title, w - 80)[0]; ctx.fillText(t, 40, 70);
+}
+
+const summary = makePanel(1024, 700, 0.46);
+summary.mesh.position.set(-0.3, 0.36, -0.5); summary.mesh.rotation.set(-0.2, 0.28, 0); board.add(summary.mesh);
+function drawSummary(){
+  const { ctx, c } = summary; const w = c.width, h = c.height;
+  panelFrame(ctx, w, h, 'Defender for Cloud · Resumen');
+  ctx.fillStyle = '#8fb3d9'; ctx.font = '400 26px "Segoe UI", Arial'; ctx.fillText(DATA.tenant, 40, 108);
+  const cx = 190, cy = 290, r = 105, p = DATA.secureScore / 100;
+  ctx.lineWidth = 26; ctx.strokeStyle = '#1c3350'; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+  ctx.strokeStyle = p >= 0.75 ? COL.ok : p >= 0.5 ? COL.Baja : COL.Media; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * p); ctx.stroke(); ctx.lineCap = 'butt';
+  ctx.fillStyle = '#e6f1ff'; ctx.font = '700 62px "Segoe UI", Arial'; ctx.textAlign = 'center'; ctx.fillText(DATA.secureScore + '%', cx, cy + 22);
+  ctx.font = '400 24px "Segoe UI", Arial'; ctx.fillStyle = '#8fb3d9'; ctx.fillText('Puntuación de seguridad', cx, cy + r + 48); ctx.textAlign = 'left';
+  const evald = NODES.filter(n => n.checks.length);
+  const cnt = { Alta: 0, Media: 0, Baja: 0 }; let badRes = 0;
+  for (const it of evald){ let b = false; for (const ch of it.checks) if (!ch.ok){ cnt[ch.s]++; b = true; } if (b) badRes++; }
+  const badLinks = LINKS.filter(l => !l.ok).length;
+  const y = 548; ctx.font = '600 24px "Segoe UI", Arial';
+  [['Alta', cnt.Alta], ['Media', cnt.Media], ['Baja', cnt.Baja]].forEach(([k, v], i) => {
+    const x = 50 + i * 115; ctx.fillStyle = COL[k]; ctx.beginPath(); ctx.arc(x, y - 9, 10, 0, 7); ctx.fill();
+    ctx.fillStyle = '#e6f1ff'; ctx.fillText(`${v} ${k}`, x + 18, y);
+  });
+  ctx.fillStyle = '#8fb3d9'; ctx.font = '400 24px "Segoe UI", Arial';
+  ctx.fillText(`${badRes} de ${evald.length} recursos con fallos`, 40, 596);
+  ctx.fillStyle = COL.Media; ctx.fillText(`${badLinks} de ${LINKS.length} conexiones con riesgo`, 40, 634);
+  ctx.fillStyle = '#e6f1ff'; ctx.font = '600 30px "Segoe UI", Arial'; ctx.fillText('Cumplimiento normativo', 420, 170);
+  DATA.compliance.forEach((s, i) => {
+    const yy = 230 + i * 100, bw = 560, pr = s.passed / s.total;
+    ctx.fillStyle = '#cfe2f7'; ctx.font = '400 25px "Segoe UI", Arial'; ctx.fillText(s.name, 420, yy);
+    ctx.textAlign = 'right'; ctx.fillText(`${s.passed}/${s.total}`, 420 + bw, yy); ctx.textAlign = 'left';
+    rr(ctx, 420, yy + 14, bw, 20, 10); ctx.fillStyle = '#1c3350'; ctx.fill();
+    rr(ctx, 420, yy + 14, Math.max(20, bw * pr), 20, 10); ctx.fillStyle = pr >= 0.75 ? COL.ok : pr >= 0.5 ? COL.Baja : '#4cc9f0'; ctx.fill();
+  });
+  ctx.fillStyle = '#ffd23f'; ctx.font = '600 22px "Segoe UI", Arial'; ctx.fillText('DEMO · datos ficticios', 420, 650);
+  summary.tex.needsUpdate = true;
+}
+
+const detail = makePanel(1024, 1100, 0.46);
+detail.mesh.position.set(0.3, 0.4, -0.5); detail.mesh.rotation.set(-0.2, -0.28, 0); board.add(detail.mesh);
+function drawDetail(it){
+  const { ctx, c } = detail; const w = c.width, h = c.height;
+  if (!it){
+    panelFrame(ctx, w, h, 'Detalle');
+    ctx.fillStyle = '#8fb3d9'; ctx.font = '400 30px "Segoe UI", Arial';
+    wrap(ctx, 'Apunta a un recurso o a un cable y pellizca. Los cables gruesos de color son conexiones con riesgo; los finos verdes, conexiones correctas.', w - 80).forEach((l, i) => ctx.fillText(l, 40, 140 + i * 42));
+    detail.tex.needsUpdate = true; return;
+  }
+  panelFrame(ctx, w, h, it.name);
+  ctx.fillStyle = '#8fb3d9'; ctx.font = '400 26px "Segoe UI", Arial';
+  const ml = wrap(ctx, metaLine(it), w - 80); ml.forEach((l, i) => ctx.fillText(l, 40, 110 + i * 32));
+  let y = 110 + ml.length * 32 + 20;
+  if (it.desc){ ctx.fillStyle = '#e6f1ff'; ctx.font = '400 30px "Segoe UI", Arial'; wrap(ctx, it.desc, w - 80).forEach((l, i) => ctx.fillText(l, 40, y + i * 40)); detail.tex.needsUpdate = true; return; }
+  if (!it.checks.length){
+    ctx.fillStyle = '#b9cde6'; ctx.font = '400 28px "Segoe UI", Arial';
+    wrap(ctx, 'Elemento externo a Azure: Defender for Cloud no lo evalúa. Mira los cables que salen de él.', w - 80).forEach((l, i) => ctx.fillText(l, 40, y + i * 38));
+    detail.tex.needsUpdate = true; return;
+  }
+  const ok = it.checks.filter(x => x.ok).length, ko = it.checks.length - ok;
+  ctx.font = '600 28px "Segoe UI", Arial'; ctx.fillStyle = COL.ok; ctx.fillText(`✔ ${ok} correctos`, 40, y);
+  ctx.fillStyle = ko ? COL.Alta : '#8fb3d9'; ctx.fillText(`✖ ${ko} con fallo`, 300, y);
+  y += 56;
+  for (const ch of sortChecks(it.checks)){
+    if (y > h - 60){ ctx.fillStyle = '#8fb3d9'; ctx.font = '400 24px "Segoe UI", Arial'; ctx.fillText('… más controles en la vista de escritorio', 40, h - 30); break; }
+    ctx.fillStyle = ch.ok ? COL.ok : COL[ch.s]; ctx.font = '700 30px "Segoe UI", Arial'; ctx.fillText(ch.ok ? '✔' : '✖', 40, y);
+    ctx.font = '600 27px "Segoe UI", Arial'; ctx.fillStyle = '#e6f1ff';
+    const lines = wrap(ctx, ch.t, w - 330); lines.forEach((l, i) => ctx.fillText(l, 85, y + i * 34));
+    ctx.font = '600 22px "Segoe UI", Arial'; const tag = ch.s ? `${ch.s} · ${ch.d}` : 'OK'; const tw = ctx.measureText(tag).width + 20;
+    rr(ctx, w - 40 - tw, y - 26, tw, 34, 8); ctx.fillStyle = ch.ok ? '#16324f' : COL[ch.s]; ctx.fill();
+    ctx.fillStyle = ch.ok ? '#b9cde6' : '#04121f'; ctx.fillText(tag, w - 30 - tw, y - 2);
+    y += lines.length * 34;
+    if (!ch.ok && ch.fix){
+      ctx.font = '400 24px "Segoe UI", Arial'; ctx.fillStyle = '#9fe8ff';
+      const fl = wrap(ctx, '→ ' + ch.fix, w - 140); fl.forEach((l, i) => ctx.fillText(l, 85, y + 4 + i * 30)); y += fl.length * 30 + 4;
+    }
+    y += 26;
+  }
+  detail.tex.needsUpdate = true;
+}
+
+const detailEl = document.getElementById('detail');
+function renderDetailHTML(it){
+  const head = `<h2>${esc(it.name)}</h2><div class="meta">${esc(metaLine(it))}</div>`;
+  if (it.desc){ detailEl.innerHTML = head + `<div class="hint" style="color:#e6f1ff;font-size:13px">${esc(it.desc)}</div>`; return; }
+  if (!it.checks.length){ detailEl.innerHTML = head + '<div class="hint">Elemento externo a Azure: Defender for Cloud no lo evalúa. Mira los cables que salen de él.</div>'; return; }
+  const ok = it.checks.filter(x => x.ok).length;
+  detailEl.innerHTML = head + `<div class="meta">✔ ${ok} correctos · ✖ ${it.checks.length - ok} con fallo</div>` +
+    sortChecks(it.checks).map(ch => `<div class="chk"><span style="color:${ch.ok ? COL.ok : COL[ch.s]};font-weight:700">${ch.ok ? '✔' : '✖'}</span> <b>${esc(ch.t)}</b><span class="tag" style="${ch.ok ? '' : `background:${COL[ch.s]};color:#04121f`}">${ch.s ? `${ch.s} · MCSB ${ch.d}` : 'OK'}</span>${!ch.ok && ch.fix ? `<div class="fix">→ ${esc(ch.fix)}</div>` : ''}</div>`).join('') +
+    `<span class="azbtn">↗ Abrir en Azure · disponible con datos reales</span>` +
+    `<div class="hint" style="margin-top:10px">Severidades, textos y dominios MCSB de ejemplo. En la versión conectada salen tal cual de Defender for Cloud.</div>`;
+}
+
+let selected = null;
+function select(rec){
+  selected = rec;
+  if (rec.kind === 'node'){ selRing.visible = true; selRing.position.set(rec.grp.position.x, 0.004, rec.grp.position.z); }
+  else selRing.visible = false;
+  drawDetail(rec.item); renderDetailHTML(rec.item);
+}
+drawSummary(); drawDetail(null);
+/* alternar mapa / catálogo */
+const catBtn = document.getElementById('cat');
+function showCatalog(on){
+  map.visible = !on; catalog.visible = on; catBtn.textContent = on ? 'Volver al mapa de red' : 'Ver catálogo de modelos 3D';
+  selected = null; selRing.visible = false; drawDetail(null);
+  detailEl.innerHTML = on ? '<div class="hint">Catálogo: cada pieza representa un tipo de recurso. Toca una para ver qué es y cómo muestra su estado.</div>' : '<div class="hint">Selecciona un recurso o un cable del mapa.</div>';
+}
+catBtn.addEventListener('click', () => showCatalog(!catalog.visible));
+
+if (location.hash === '#catalogo') showCatalog(true);
+{ const h = location.hash.slice(1); const r = byId[h] || (h.startsWith('l') ? linkRecs[+h.slice(1)] : null); if (r) select(r); }
+
+/* ===================== interacción escritorio ===================== */
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2(); let mouseIn = false; let downAt = null;
+canvas.addEventListener('pointermove', e => { mouse.x = (e.clientX / innerWidth) * 2 - 1; mouse.y = -(e.clientY / innerHeight) * 2 + 1; mouseIn = true; });
+canvas.addEventListener('pointerleave', () => { mouseIn = false; });
+canvas.addEventListener('pointerdown', e => {
+  downAt = [e.clientX, e.clientY];
+  if (!editMode) return;
+  mouse.x = (e.clientX / innerWidth) * 2 - 1; mouse.y = -(e.clientY / innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera); const hit = pickFrom(raycaster);
+  if (hit && hit.object.userData.rec && hit.object.userData.rec.kind === 'node' && startDrag(hit.object.userData.rec, raycaster.ray)) controls.enabled = false;
+});
+canvas.addEventListener('pointermove', () => { if (dragging && !renderer.xr.isPresenting){ raycaster.setFromCamera(mouse, camera); dragTo(raycaster.ray); } });
+canvas.addEventListener('pointerup', e => {
+  if (dragging && !renderer.xr.isPresenting){ dragging = null; controls.enabled = true; downAt = null; return; }
+  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5) return;
+  mouse.x = (e.clientX / innerWidth) * 2 - 1; mouse.y = -(e.clientY / innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera); const hit = pickFrom(raycaster);
+  if (hit) handlePick(hit.object);
+});
+/* prioriza nodos sobre cables cuando ambos están bajo el puntero */
+function shown(o){ while (o){ if (o.visible === false) return false; o = o.parent; } return true; }
+function pickFrom(rc){
+  const hits = rc.intersectObjects(pickables, false).filter(h => shown(h.object)); if (!hits.length) return null;
+  const node = hits.find(h => h.object.userData.action || (h.object.userData.rec && h.object.userData.rec.kind === 'node'));
+  if (node && node.distance - hits[0].distance < 0.05) return node;
+  return hits[0];
+}
+function handlePick(obj){
+  if (obj.userData.action){ doAction(obj.userData.action); return; }
+  if (obj.userData.rec) select(obj.userData.rec);
+}
+
+/* ===================== modo maqueta: mover y escalar ===================== */
+let editMode = false, boardScale = 1, dragging = null;
+const dragOff = new THREE.Vector3(), plane = new THREE.Plane(), tmpV = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
+const LKEY = 'tablero-maqueta-v1';
+function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+function moveNode(rec, x, z){
+  rec.grp.position.x = clamp(x, -W / 2 + 0.015, W / 2 - 0.015);
+  rec.grp.position.z = clamp(z, -D / 2 - 0.06, D / 2 - 0.015);
+  (nodeLinks[rec.item.id] || []).forEach(rebuildLink);
+  if (selected === rec) selRing.position.set(rec.grp.position.x, 0.004, rec.grp.position.z);
+  scheduleSave();
+}
+function scaleNode(rec, f){
+  rec.s = clamp(rec.s * f, 0.5, 3); rec.grp.scale.setScalar(rec.s); rec.anchorY = rec.anchorY0 * rec.s;
+  (nodeLinks[rec.item.id] || []).forEach(rebuildLink);
+  if (selected === rec) selRing.scale.setScalar(rec.s);
+  scheduleSave();
+}
+function setBoardScale(v){ boardScale = clamp(v, 0.3, 2.5); board.scale.setScalar(boardScale); scheduleSave(); }
+/* punto del tablero (coordenadas locales) bajo un rayo */
+function boardPoint(ray){
+  board.updateMatrixWorld(); board.getWorldPosition(tmpV);
+  plane.setFromNormalAndCoplanarPoint(UP, tmpV);
+  const hitP = ray.intersectPlane(plane, new THREE.Vector3()); if (!hitP) return null;
+  return board.worldToLocal(hitP);
+}
+function startDrag(rec, ray){
+  const p = boardPoint(ray); if (!p) return false;
+  dragging = rec; dragOff.set(rec.grp.position.x - p.x, 0, rec.grp.position.z - p.z); select(rec); return true;
+}
+function dragTo(ray){ const p = boardPoint(ray); if (p && dragging) moveNode(dragging, p.x + dragOff.x, p.z + dragOff.z); }
+let saveT = null;
+function scheduleSave(){
+  clearTimeout(saveT);
+  saveT = setTimeout(() => {
+    const n = {}; for (const r of nodeRecs) n[r.item.id] = [+r.grp.position.x.toFixed(4), +r.grp.position.z.toFixed(4), +r.s.toFixed(3)];
+    try { localStorage.setItem(LKEY, JSON.stringify({ n, b: boardScale })); } catch (e) {}
+  }, 400);
+}
+function loadLayout(){
+  let d = null; try { d = JSON.parse(localStorage.getItem(LKEY) || 'null'); } catch (e) {}
+  if (!d) return;
+  for (const r of nodeRecs){ const v = d.n && d.n[r.item.id]; if (v){ r.grp.position.x = v[0]; r.grp.position.z = v[1]; r.s = v[2] || 1; r.grp.scale.setScalar(r.s); r.anchorY = r.anchorY0 * r.s; } }
+  linkRecs.forEach(rebuildLink);
+  if (d.b){ boardScale = d.b; board.scale.setScalar(boardScale); }
+}
+function resetLayout(){
+  for (const r of nodeRecs){ r.grp.position.set(r.item.pos[0], 0, r.item.pos[1]); r.s = 1; r.grp.scale.setScalar(1); r.anchorY = r.anchorY0; }
+  linkRecs.forEach(rebuildLink); boardScale = 1; board.scale.setScalar(1);
+  if (selected && selected.kind === 'node'){ selRing.position.set(selected.grp.position.x, 0.004, selected.grp.position.z); selRing.scale.setScalar(1); }
+  try { localStorage.removeItem(LKEY); } catch (e) {}
+}
+function setEdit(on){
+  editMode = on;
+  document.querySelectorAll('[data-a="edit"]').forEach(b => b.classList.toggle('on', on));
+  setMsg(on ? 'Modo maqueta: arrastra las piezas para moverlas (los cables las siguen). Selecciona una y usa Pieza +/− para cambiar su tamaño.' : '');
+}
+function doAction(a){
+  const sel = selected && selected.kind === 'node' ? selected : null;
+  switch (a){
+    case 'move': if (renderer.xr.isPresenting){ placing = true; placeHint.visible = true; lastHitAt = 0; } else setMsg('“Colocar” sirve para recolocar el tablero dentro de la realidad mixta.'); break;
+    case 'edit': setEdit(!editMode); break;
+    case 'pplus': case 'pminus': if (sel) scaleNode(sel, a === 'pplus' ? 1.15 : 1 / 1.15); else setMsg('Selecciona primero una pieza para cambiar su tamaño.'); break;
+    case 'mplus': setBoardScale(boardScale * 1.15); break;
+    case 'mminus': setBoardScale(boardScale / 1.15); break;
+    case 'reset': resetLayout(); setMsg('Maqueta restablecida a la disposición original.'); break;
+  }
+}
+document.querySelectorAll('#tools button').forEach(b => b.addEventListener('click', () => doAction(b.dataset.a)));
+addEventListener('keydown', e => {
+  if (!selected || selected.kind !== 'node') return;
+  if (e.key === '+' || e.key === '=') scaleNode(selected, 1.1);
+  if (e.key === '-' || e.key === '_') scaleNode(selected, 1 / 1.1);
+});
+loadLayout();
+
+/* ===================== realidad mixta (WebXR) ===================== */
+const btn = document.getElementById('xr'); const msgEl = document.getElementById('msg');
+function setMsg(t){ msgEl.textContent = t; }
+let hitTestSource = null, placing = false, lastHitAt = 0, xrStartAt = 0;
+
+(async () => {
+  let ok = false;
+  try { ok = !!(navigator.xr && await navigator.xr.isSessionSupported('immersive-ar')); } catch (e) { ok = false; }
+  if (ok){ btn.disabled = false; btn.textContent = 'Entrar en realidad mixta'; }
+  else {
+    btn.textContent = 'Realidad mixta no disponible aquí';
+    setMsg('Para verlo sobre tu mesa, abre esta página en el navegador del Meta Quest 3 desde una dirección HTTPS propia (p. ej. GitHub Pages). Aquí puedes explorar la vista 3D.');
+  }
+})();
+
+btn.addEventListener('click', async () => {
+  try {
+    const session = await navigator.xr.requestSession('immersive-ar', { optionalFeatures: ['local-floor', 'hit-test', 'hand-tracking'] });
+    const feats = session.enabledFeatures;
+    renderer.xr.setReferenceSpaceType(!feats || feats.includes('local-floor') ? 'local-floor' : 'local');
+    await renderer.xr.setSession(session);
+    onXRStart(session);
+  } catch (e) { setMsg('No se pudo iniciar la realidad mixta: ' + (e && e.message ? e.message : e)); }
+});
+
+function onXRStart(session){
+  scene.background = null; renderer.setClearColor(0x000000, 0);
+  placing = true; placeHint.visible = true; board.visible = false; xrStartAt = performance.now(); lastHitAt = 0;
+  session.requestReferenceSpace('viewer')
+    .then(vs => session.requestHitTestSource ? session.requestHitTestSource({ space: vs }) : null)
+    .then(src => { hitTestSource = src; }).catch(() => { hitTestSource = null; });
+  session.addEventListener('end', () => {
+    hitTestSource = null; placing = false; placeHint.visible = false;
+    scene.background = BG; renderer.setClearColor(0x050b14, 1);
+    board.position.set(0, 0, 0); board.rotation.set(0, 0, 0); board.visible = true;
+  });
+}
+
+const controllers = [];
+for (let i = 0; i < 2; i++){
+  const ctrl = renderer.xr.getController(i);
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1)]), new THREE.LineBasicMaterial({ color: 0x4cc9f0, transparent: true, opacity: 0.7 }));
+  line.scale.z = 0.6; ctrl.add(line); ctrl.userData.line = line;
+  ctrl.addEventListener('select', () => onSelectXR(ctrl));
+  ctrl.addEventListener('selectstart', () => {
+    if (!editMode || placing) return;
+    const hit = rayFrom(ctrl);
+    if (hit && hit.object.userData.rec && hit.object.userData.rec.kind === 'node' && startDrag(hit.object.userData.rec, raycaster.ray)) ctrl.userData.grab = true;
+  });
+  ctrl.addEventListener('selectend', () => { if (ctrl.userData.grab){ ctrl.userData.grab = false; dragging = null; } });
+  ctrl.addEventListener('connected', e => { ctrl.userData.src = e.data; });
+  ctrl.addEventListener('disconnected', () => { ctrl.userData.src = null; });
+  scene.add(ctrl); controllers.push(ctrl);
+}
+const tmpM = new THREE.Matrix4();
+function rayFrom(ctrl){
+  tmpM.identity().extractRotation(ctrl.matrixWorld);
+  raycaster.ray.origin.setFromMatrixPosition(ctrl.matrixWorld);
+  raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tmpM);
+  return pickFrom(raycaster);
+}
+function onSelectXR(ctrl){
+  if (ctrl.userData.grab) return;
+  if (placing){ if (board.visible){ placing = false; placeHint.visible = false; } return; }
+  const hit = rayFrom(ctrl); if (hit) handlePick(hit.object);
+}
+const camPos = new THREE.Vector3(), camDir = new THREE.Vector3();
+function faceUser(){
+  const cam = renderer.xr.getCamera(); cam.getWorldPosition(camPos);
+  board.rotation.set(0, Math.atan2(camPos.x - board.position.x, camPos.z - board.position.z), 0);
+}
+function placeInFront(){
+  const cam = renderer.xr.getCamera(); cam.getWorldPosition(camPos); cam.getWorldDirection(camDir);
+  camDir.y = 0; if (camDir.lengthSq() < 1e-6) camDir.set(0, 0, -1); camDir.normalize();
+  board.position.set(camPos.x + camDir.x * 0.75, camPos.y - 0.5, camPos.z + camDir.z * 0.75);
+  faceUser(); board.visible = true;
+}
+
+/* ===================== bucle ===================== */
+function applyHover(set){
+  for (const r of nodeRecs){ const on = set.has(r) || r === selected; for (const m of r.shells) m.emissiveIntensity = on ? 0.25 : 0.035; for (const m of r.accents) m.emissiveIntensity = on ? 1.2 : 0.55; }
+  for (const l of linkRecs){
+    const on = set.has(l) || l === selected;
+    l.tubeMat.opacity = on ? 1 : l.baseOpacity;
+    l.label.visible = !l.ok || on;
+  }
+  for (const [a, m] of Object.entries(toolBtns)) m.material.emissiveIntensity = set.has(a) ? 0.8 : (a === 'edit' && editMode ? 0.7 : 0.25);
+}
+function collect(hit, set){ if (!hit) return; if (hit.object.userData.action) set.add(hit.object.userData.action); else if (hit.object.userData.rec) set.add(hit.object.userData.rec); }
+
+renderer.setAnimationLoop((t, frame) => {
+  const s = t / 1000;
+  for (const r of nodeRecs){
+    r.orb.position.y = r.baseY + Math.sin(s * 2 + r.phase) * 0.003;
+    r.orb.scale.setScalar(r.bad ? 1 + 0.25 * (0.5 + 0.5 * Math.sin(s * 4 + r.phase)) : 1);
+  }
+  for (const l of linkRecs) for (const p of l.pulses) p.m.position.copy(l.curve.getPoint((s * l.speed + p.off) % 1));
+  scan.position.z = -D / 2 + ((s * 0.1) % 1) * D;
+  if (selRing.visible) selRing.material.opacity = 0.55 + 0.4 * Math.sin(s * 3);
+
+  const hv = new Set();
+  if (renderer.xr.isPresenting){
+    if (placing){
+      let got = false;
+      if (frame && hitTestSource){
+        const res = frame.getHitTestResults(hitTestSource);
+        if (res.length){ const pose = res[0].getPose(renderer.xr.getReferenceSpace()); if (pose){ const p = pose.transform.position; board.position.set(p.x, p.y, p.z); faceUser(); board.visible = true; got = true; lastHitAt = t; } }
+      }
+      if (!got && t - lastHitAt > 2500 && performance.now() - xrStartAt > 1500) placeInFront();
+    }
+    for (const ctrl of controllers){
+      if (ctrl.userData.grab){ tmpM.identity().extractRotation(ctrl.matrixWorld); raycaster.ray.origin.setFromMatrixPosition(ctrl.matrixWorld); raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tmpM); dragTo(raycaster.ray); }
+      const gp = ctrl.userData.src && ctrl.userData.src.gamepad;
+      if (gp && gp.axes.length >= 4 && Math.abs(gp.axes[3]) > 0.4){
+        const f = 1 - gp.axes[3] * 0.012;
+        if (editMode && selected && selected.kind === 'node') scaleNode(selected, f); else setBoardScale(boardScale * f);
+      }
+      const hit = placing ? null : rayFrom(ctrl);
+      ctrl.userData.line.scale.z = hit ? hit.distance : 0.6;
+      collect(hit, hv);
+    }
+  } else {
+    controls.update();
+    if (mouseIn){ raycaster.setFromCamera(mouse, camera); collect(pickFrom(raycaster), hv); }
+    canvas.style.cursor = dragging ? 'grabbing' : editMode && [...hv].some(r => r && r.kind === 'node') ? 'move' : hv.size ? 'pointer' : 'grab';
+  }
+  applyHover(hv);
+  renderer.render(scene, camera);
+});
+
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+</script>
+</body>
+</html>
