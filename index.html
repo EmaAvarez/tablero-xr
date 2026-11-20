@@ -43,7 +43,7 @@
 
 <div id="hud" class="card">
   <h1>Mapa de red holográfico · Defender for Cloud</h1>
-  <div class="sub">Prototipo v0.4 · <b>datos de ejemplo ficticios</b>. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
+  <div class="sub">Prototipo v0.5 · <b>datos de ejemplo ficticios</b>. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
   <button id="cat" style="width:100%;padding:9px;border-radius:10px;border:1px solid #4cc9f0;background:transparent;color:#9fe8ff;font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px">Ver catálogo de modelos 3D</button>
   <button id="xr" disabled>Comprobando realidad mixta…</button>
   <div id="msg"></div>
@@ -342,10 +342,16 @@ const textTex = (txt, fg, bg) => canvasTex('t' + txt + fg + bg, 128, 80, (x, w, 
   x.fillStyle = fg; x.font = '800 54px "Segoe UI", Arial'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(txt, w / 2, h / 2 + 3);
 });
 
+const TYPE_COL = { vm: 0x2f8fe0, sqlserver: 0x6c63d9, sqldb: 0x7b73e6, storage: 0x22a3b5, keyvault: 0xaab6c4, webapp: 0x4f7cff, vpngw: 0x8c5bd6, nsg: 0x3d6fb0, pip: 0xa45bd6, pe: 0x22a3b5, warn: 0x8a8f99, subscription: 0x5b8def, internet: 0xd6ecff, onprem: 0x9aa5b1 };
+let scheme = 'tipo';
+try { scheme = localStorage.getItem('tablero-colores') || 'tipo'; } catch (e) {}
 function buildModel(type, hex){
   const col = new THREE.Color(hex);
   const g = new THREE.Group(), shells = [], accents = [];
-  const shell = (c = 0x3b5675) => { const m = new THREE.MeshStandardMaterial({ color: c, emissive: col, emissiveIntensity: 0.035, roughness: 0.5, metalness: 0.4 }); shells.push(m); return m; };
+  const shell = (c = 0x3b5675) => {
+    const tc = new THREE.Color(TYPE_COL[type] ?? 0x3b5675).lerp(new THREE.Color(c), 0.3);
+    const m = new THREE.MeshStandardMaterial({ color: scheme === 'tipo' ? tc : c, emissive: col, emissiveIntensity: 0.035, roughness: 0.5, metalness: 0.35 });
+    m.userData.neutral = new THREE.Color(c); m.userData.typeCol = tc; shells.push(m); return m; };
   const accent = () => { const m = new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.55, roughness: 0.3 }); accents.push(m); return m; };
   const add = (geo, mat, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); g.add(m); return m; };
   const B = (w, h, d) => new THREE.BoxGeometry(w, h, d), C = (rt, rb, h, s = 28) => new THREE.CylinderGeometry(rt, rb, h, s);
@@ -478,7 +484,9 @@ function addNode(item){
   const n = fails(item);
   const txt = item.labelText || (!item.checks.length ? item.name : n ? `${item.name}  ✖ ${n}` : `${item.name}  ✔`);
   const label = makeLabel(txt, 0.015, { border: statusHex }); label.position.y = topY + 0.021; grp.add(label);
-  const rec = { kind: 'node', item, grp, orb, shells, accents, baseY: topY, anchorY: Math.min(h * 0.5, 0.035), phase: Math.random() * 6.28, bad: n > 0 };
+  const pickBall = new THREE.Mesh(new THREE.SphereGeometry(0.034, 12, 8), new THREE.MeshBasicMaterial({ visible: false })); pickBall.position.y = h / 2; grp.add(pickBall);
+  label.userData.aspect = label.scale.x / label.scale.y;
+  const rec = { kind: 'node', item, grp, orb, label, h, shells, accents, baseY: topY, anchorY: Math.min(h * 0.5, 0.035), phase: Math.random() * 6.28, bad: n > 0 };
   grp.traverse(o => { if (o.isMesh && o !== glow){ o.userData.rec = rec; pickables.push(o); } });
   nodeRecs.push(rec); byId[item.id] = rec;
   return rec;
@@ -558,14 +566,14 @@ for (const l of linkRecs) for (const id of [l.L.from, l.L.to]) if (id) (nodeLink
 for (const r of nodeRecs){ r.s = 1; r.anchorY0 = r.anchorY; }
 
 /* barra de herramientas 3D (útil en RM; en escritorio hay otra en HTML) */
-const TOOLS = [['move', '⟲ Colocar'], ['edit', '✋ Editar'], ['pminus', 'Pieza −'], ['pplus', 'Pieza +'], ['mminus', 'Maqueta −'], ['mplus', 'Maqueta +'], ['reset', '↺ Restablecer']];
+const TOOLS = [['move', '⟲ Colocar'], ['edit', '✋ Editar'], ['pminus', 'Pieza −'], ['pplus', 'Pieza +'], ['mminus', 'Maqueta −'], ['mplus', 'Maqueta +'], ['reset', '↺ Restablecer'], ['colors', '🎨 Colores']];
 const toolBtns = {};
 const toolbar = new THREE.Group(); board.add(toolbar);
 TOOLS.forEach(([action, text], i) => {
-  const bw = 0.145, x = -((TOOLS.length - 1) * 0.157) / 2 + i * 0.157;
+  const bw = 0.128, x = -((TOOLS.length - 1) * 0.139) / 2 + i * 0.139;
   const m = new THREE.Mesh(new THREE.BoxGeometry(bw, 0.012, 0.042), new THREE.MeshStandardMaterial({ color: 0x14324f, emissive: 0x4cc9f0, emissiveIntensity: 0.25 }));
   m.position.set(x, 0.006, D / 2 + 0.045); m.userData.action = action; toolbar.add(m); pickables.push(m);
-  const l = makeFlatLabel(text, 0.019, { bg: null, size: 40 }); l.position.set(x, 0.0125, D / 2 + 0.045); toolbar.add(l);
+  const l = makeFlatLabel(text, 0.017, { bg: null, size: 40 }); l.position.set(x, 0.0125, D / 2 + 0.045); toolbar.add(l);
   toolBtns[action] = m;
 });
 const selRing = new THREE.Mesh(new THREE.RingGeometry(0.036, 0.043, 48), new THREE.MeshBasicMaterial({ color: 0x4cc9f0, transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
@@ -797,6 +805,12 @@ function doAction(a){
     case 'pplus': case 'pminus': if (sel) scaleNode(sel, a === 'pplus' ? 1.15 : 1 / 1.15); else setMsg('Selecciona primero una pieza para cambiar su tamaño.'); break;
     case 'mplus': setBoardScale(boardScale * 1.15); break;
     case 'mminus': setBoardScale(boardScale / 1.15); break;
+    case 'colors':
+      scheme = scheme === 'tipo' ? 'estado' : 'tipo';
+      try { localStorage.setItem('tablero-colores', scheme); } catch (e) {}
+      for (const r of nodeRecs) for (const m of r.shells) m.color.copy(scheme === 'tipo' ? m.userData.typeCol : m.userData.neutral);
+      setMsg(scheme === 'tipo' ? 'Colores por tipo: cada clase de recurso tiene su color; el estado se ve en el aro del suelo, la esfera y las piezas de acento.' : 'Colores por estado: cuerpos en gris; solo destacan los colores de estado.');
+      break;
     case 'reset': resetLayout(); setMsg('Maqueta restablecida a la disposición original.'); break;
   }
 }
@@ -858,11 +872,69 @@ for (let i = 0; i < 2; i++){
     if (hit && hit.object.userData.rec && hit.object.userData.rec.kind === 'node' && startDrag(hit.object.userData.rec, raycaster.ray)) ctrl.userData.grab = true;
   });
   ctrl.addEventListener('selectend', () => { if (ctrl.userData.grab){ ctrl.userData.grab = false; dragging = null; } });
+  ctrl.addEventListener('squeezestart', () => onSqueeze(ctrl, true));
+  ctrl.addEventListener('squeezeend', () => onSqueeze(ctrl, false));
   ctrl.addEventListener('connected', e => { ctrl.userData.src = e.data; });
   ctrl.addEventListener('disconnected', () => { ctrl.userData.src = null; });
   scene.add(ctrl); controllers.push(ctrl);
 }
 const tmpM = new THREE.Matrix4();
+/* ---- agarre con el botón lateral (grip) ----
+   · Junto a una pieza o apuntándola: la agarras y la mueves (los cables la siguen).
+   · En cualquier otro sitio: agarras toda la maqueta y la desplazas.
+   · Con los dos grips: estiras o juntas las manos para agrandar o achicar la maqueta.
+   · Sujetando una pieza con una mano, el grip de la otra mano + estirar = cambia el tamaño de esa pieza. */
+const cPos = [new THREE.Vector3(), new THREE.Vector3()];
+let two = null;
+function ctrlPos(ctrl, out){ return out.setFromMatrixPosition(ctrl.matrixWorld); }
+function nearestNode(wp){
+  let best = null, bd = 1e9; const v = new THREE.Vector3();
+  for (const r of nodeRecs){ if (!shown(r.grp)) continue; r.grp.getWorldPosition(v); v.y += r.h * r.s * boardScale * 0.5; const d = v.distanceTo(wp); if (d < bd){ bd = d; best = r; } }
+  return bd < Math.max(0.07, 0.05 * boardScale) ? best : null;
+}
+function onSqueeze(ctrl, down){
+  const i = controllers.indexOf(ctrl), other = controllers[1 - i];
+  if (!down){
+    ctrl.userData.sq = null;
+    if (two){ two = null; if (other && other.userData.sq) other.userData.sq = null; }
+    dragging = null; return;
+  }
+  if (placing) return;
+  const wp = ctrlPos(ctrl, new THREE.Vector3());
+  if (other && other.userData.sq){
+    const d0 = wp.distanceTo(ctrlPos(other, new THREE.Vector3()));
+    if (other.userData.sq.mode === 'piece'){ two = { kind: 'piece', rec: other.userData.sq.rec, d0, s0: other.userData.sq.rec.s }; }
+    else { two = { kind: 'board', d0, s0: boardScale }; other.userData.sq = { mode: 'hold' }; }
+    ctrl.userData.sq = { mode: 'hold' }; return;
+  }
+  let rec = nearestNode(wp), ray = false;
+  if (!rec){ const hit = rayFrom(ctrl); if (hit && hit.object.userData.rec && hit.object.userData.rec.kind === 'node'){ rec = hit.object.userData.rec; ray = true; } }
+  if (rec){
+    select(rec);
+    const lp = board.worldToLocal(wp.clone());
+    ctrl.userData.sq = { mode: 'piece', rec, ray, off: new THREE.Vector3(rec.grp.position.x - lp.x, 0, rec.grp.position.z - lp.z) };
+    if (ray) startDrag(rec, raycaster.ray);
+  } else {
+    ctrl.userData.sq = { mode: 'board', start: wp.clone(), b0: board.position.clone() };
+  }
+}
+function setNodeScale(rec, v){ scaleNode(rec, clamp(v, 0.5, 3) / rec.s); }
+function updateSqueeze(){
+  if (two){
+    const d = ctrlPos(controllers[0], cPos[0]).distanceTo(ctrlPos(controllers[1], cPos[1]));
+    if (two.kind === 'board') setBoardScale(two.s0 * d / two.d0); else setNodeScale(two.rec, two.s0 * d / two.d0);
+    return;
+  }
+  for (const ctrl of controllers){
+    const sq = ctrl.userData.sq; if (!sq) continue;
+    const wp = ctrlPos(ctrl, new THREE.Vector3());
+    if (sq.mode === 'board'){ board.position.copy(sq.b0).add(wp.sub(sq.start)); }
+    else if (sq.mode === 'piece'){
+      if (sq.ray){ tmpM.identity().extractRotation(ctrl.matrixWorld); raycaster.ray.origin.setFromMatrixPosition(ctrl.matrixWorld); raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tmpM); dragTo(raycaster.ray); }
+      else { const lp = board.worldToLocal(wp); moveNode(sq.rec, lp.x + sq.off.x, lp.z + sq.off.z); }
+    }
+  }
+}
 function rayFrom(ctrl){
   tmpM.identity().extractRotation(ctrl.matrixWorld);
   raycaster.ray.origin.setFromMatrixPosition(ctrl.matrixWorld);
@@ -884,6 +956,27 @@ function placeInFront(){
   camDir.y = 0; if (camDir.lengthSq() < 1e-6) camDir.set(0, 0, -1); camDir.normalize();
   board.position.set(camPos.x + camDir.x * 0.75, camPos.y - 0.5, camPos.z + camDir.z * 0.75);
   faceUser(); board.visible = true;
+}
+
+/* ===================== etiquetas legibles a cualquier escala ===================== */
+const lblPos = new THREE.Vector3(), eye = new THREE.Vector3();
+function sizeLabels(){
+  const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera; cam.getWorldPosition(eye);
+  for (const r of nodeRecs){
+    if (!shown(r.grp)) continue;
+    r.label.getWorldPosition(lblPos);
+    const worldH = clamp(eye.distanceTo(lblPos) * 0.019, 0.011, 0.045);
+    const k = worldH / (boardScale * r.s);
+    r.label.scale.set(k * r.label.userData.aspect, k, 1);
+    r.label.position.y = r.baseY + 0.012 / r.s + k * 0.55;
+  }
+  for (const l of linkRecs){
+    if (!l.label.visible || !shown(l.label)) continue;
+    l.label.getWorldPosition(lblPos);
+    const k = clamp(eye.distanceTo(lblPos) * 0.019, 0.009, 0.045) / boardScale;
+    if (!l.label.userData.aspect) l.label.userData.aspect = l.label.scale.x / l.label.scale.y;
+    l.label.scale.set(k * l.label.userData.aspect, k, 1);
+  }
 }
 
 /* ===================== bucle ===================== */
@@ -918,6 +1011,7 @@ renderer.setAnimationLoop((t, frame) => {
       }
       if (!got && t - lastHitAt > 2500 && performance.now() - xrStartAt > 1500) placeInFront();
     }
+    updateSqueeze();
     for (const ctrl of controllers){
       if (ctrl.userData.grab){ tmpM.identity().extractRotation(ctrl.matrixWorld); raycaster.ray.origin.setFromMatrixPosition(ctrl.matrixWorld); raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tmpM); dragTo(raycaster.ray); }
       const gp = ctrl.userData.src && ctrl.userData.src.gamepad;
@@ -934,6 +1028,7 @@ renderer.setAnimationLoop((t, frame) => {
     if (mouseIn){ raycaster.setFromCamera(mouse, camera); collect(pickFrom(raycaster), hv); }
     canvas.style.cursor = dragging ? 'grabbing' : editMode && [...hv].some(r => r && r.kind === 'node') ? 'move' : hv.size ? 'pointer' : 'grab';
   }
+  sizeLabels();
   applyHover(hv);
   renderer.render(scene, camera);
 });
