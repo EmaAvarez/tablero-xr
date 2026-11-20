@@ -5,30 +5,30 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tablero holográfico · Defender for Cloud (demo)</title>
 <style>
-  html,body{margin:0;height:100%;background:#050b14;color:#e6f1ff;font-family:"Segoe UI",system-ui,Arial,sans-serif;overflow:hidden}
+  html,body{margin:0;height:100%;background:#11100f;color:#ffffff;font-family:"Segoe UI",system-ui,Arial,sans-serif;overflow:hidden}
   #c{position:fixed;inset:0;display:block}
-  .card{position:fixed;background:rgba(8,20,36,.86);border:1px solid rgba(76,201,240,.35);border-radius:12px;padding:14px 16px;box-sizing:border-box}
+  .card{position:fixed;background:rgba(37,36,35,.94);border:1px solid rgba(0,120,212,.55);border-radius:12px;padding:14px 16px;box-sizing:border-box}
   #hud{top:16px;left:16px;width:340px}
   h1{font-size:17px;margin:0 0 4px}
-  .sub{font-size:12px;color:#8fb3d9;margin-bottom:12px;line-height:1.4}
-  #xr{width:100%;padding:12px;border-radius:10px;border:0;background:#4cc9f0;color:#04121f;font-weight:700;font-size:15px;cursor:pointer}
-  #xr:disabled{background:#22334a;color:#8fa5c0;cursor:not-allowed}
-  #msg{font-size:12px;color:#ffd23f;margin-top:8px;line-height:1.45}
-  .legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;font-size:12px;color:#b9cde6}
+  .sub{font-size:12px;color:#c8c6c4;margin-bottom:12px;line-height:1.4}
+  #xr{width:100%;padding:12px;border-radius:10px;border:0;background:#0078d4;color:#ffffff;font-weight:700;font-size:15px;cursor:pointer}
+  #xr:disabled{background:#3b3a39;color:#a19f9d;cursor:not-allowed}
+  #msg{font-size:12px;color:#ffb900;margin-top:8px;line-height:1.45}
+  .legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;font-size:12px;color:#d2d0ce}
   .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
   #detail{top:16px;right:16px;width:390px;max-height:calc(100% - 32px);overflow:auto}
   #detail h2{font-size:16px;margin:0 0 2px}
-  .meta{font-size:12px;color:#8fb3d9;margin-bottom:10px;line-height:1.45}
+  .meta{font-size:12px;color:#c8c6c4;margin-bottom:10px;line-height:1.45}
   .chk{border-top:1px solid rgba(255,255,255,.08);padding:8px 0;font-size:13px;line-height:1.4}
   .chk b{font-weight:600}
-  .tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:6px;margin-left:6px;background:#1c3350;color:#b9cde6}
-  .fix{color:#9fe8ff;font-size:12px;margin-top:3px}
-  .hint{font-size:12px;color:#8fb3d9;line-height:1.45}
-  .azbtn{display:inline-block;margin-top:12px;padding:7px 10px;border-radius:8px;border:1px dashed #3b5878;color:#8fa5c0;font-size:12px}
+  .tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:6px;margin-left:6px;background:#3b3a39;color:#d2d0ce}
+  .fix{color:#6cb8f6;font-size:12px;margin-top:3px}
+  .hint{font-size:12px;color:#c8c6c4;line-height:1.45}
+  .azbtn{display:inline-block;margin-top:12px;padding:7px 10px;border-radius:8px;border:1px dashed #3b5878;color:#a19f9d;font-size:12px}
   #tools{bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:6px;padding:8px;flex-wrap:wrap;justify-content:center}
-  #tools button{padding:8px 11px;border-radius:8px;border:1px solid #2c6e9e;background:#0f2238;color:#cfe2f7;font-size:13px;font-weight:600;cursor:pointer}
-  #tools button:hover{border-color:#4cc9f0}
-  #tools button.on{background:#4cc9f0;color:#04121f;border-color:#4cc9f0}
+  #tools button{padding:8px 11px;border-radius:8px;border:1px solid #2c6e9e;background:#252423;color:#e1dfdd;font-size:13px;font-weight:600;cursor:pointer}
+  #tools button:hover{border-color:#2899f5}
+  #tools button.on{background:#2899f5;color:#11100f;border-color:#2899f5}
   @media (max-width:860px){#hud{width:auto;right:16px}#detail{top:auto;bottom:16px;left:16px;right:16px;width:auto;max-height:42%}}
 </style>
 <script type="importmap">
@@ -43,16 +43,16 @@
 
 <div id="hud" class="card">
   <h1>Mapa de red holográfico · Defender for Cloud</h1>
-  <div class="sub">Prototipo v0.5 · <b>datos de ejemplo ficticios</b>. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
-  <button id="cat" style="width:100%;padding:9px;border-radius:10px;border:1px solid #4cc9f0;background:transparent;color:#9fe8ff;font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px">Ver catálogo de modelos 3D</button>
+  <div class="sub">Prototipo v0.6 · <b>datos de ejemplo ficticios</b>. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
+  <button id="cat" style="width:100%;padding:9px;border-radius:10px;border:1px solid #2899f5;background:transparent;color:#6cb8f6;font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px">Ver catálogo de modelos 3D</button>
   <button id="xr" disabled>Comprobando realidad mixta…</button>
   <div id="msg"></div>
   <div class="legend">
-    <span><span class="dot" style="background:#ff3b4e"></span>Fallo alta</span>
-    <span><span class="dot" style="background:#ff9f1c"></span>Fallo media</span>
-    <span><span class="dot" style="background:#ffd23f"></span>Fallo baja</span>
-    <span><span class="dot" style="background:#2ee59d"></span>Correcto</span>
-    <span><span class="dot" style="background:#7fc8f0"></span>Externo</span>
+    <span><span class="dot" style="background:#d13438"></span>Fallo alta</span>
+    <span><span class="dot" style="background:#f7630c"></span>Fallo media</span>
+    <span><span class="dot" style="background:#ffb900"></span>Fallo baja</span>
+    <span><span class="dot" style="background:#6bb700"></span>Correcto</span>
+    <span><span class="dot" style="background:#69afe5"></span>Externo</span>
   </div>
 </div>
 
@@ -212,7 +212,7 @@ const LINKS = [
 
 /* ===================== utilidades ===================== */
 const SEV = { Alta: 3, Media: 2, Baja: 1 };
-const COL = { Alta: '#ff3b4e', Media: '#ff9f1c', Baja: '#ffd23f', ok: '#2ee59d', ext: '#7fc8f0' };
+const COL = { Alta: '#d13438', Media: '#f7630c', Baja: '#ffb900', ok: '#6bb700', ext: '#69afe5' };
 function worstSev(item){ let w = null; for (const c of item.checks) if (!c.ok && (!w || SEV[c.s] > SEV[w])) w = c.s; return w; }
 function statusColor(item){ if (!item.checks.length) return COL.ext; const w = worstSev(item); return w ? COL[w] : COL.ok; }
 function fails(item){ return item.checks.filter(c => !c.ok).length; }
@@ -228,7 +228,7 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true 
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.xr.enabled = true;
-const BG = new THREE.Color(0x050b14);
+const BG = new THREE.Color(0x11100f);
 const scene = new THREE.Scene(); scene.background = BG;
 
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.01, 30);
@@ -242,17 +242,17 @@ const dl = new THREE.DirectionalLight(0xffffff, 1.2); dl.position.set(0.5, 1.5, 
 
 const board = new THREE.Group(); scene.add(board);
 const W = 1.14, D = 0.7;
-const base = new THREE.Mesh(new THREE.BoxGeometry(W, 0.02, D), new THREE.MeshStandardMaterial({ color: 0x0b1726, transparent: true, opacity: 0.9, roughness: 0.6 }));
+const base = new THREE.Mesh(new THREE.BoxGeometry(W, 0.02, D), new THREE.MeshStandardMaterial({ color: 0x252423, transparent: true, opacity: 0.9, roughness: 0.6 }));
 base.position.y = -0.01; board.add(base);
-const bEdges = new THREE.LineSegments(new THREE.EdgesGeometry(base.geometry), new THREE.LineBasicMaterial({ color: 0x4cc9f0, transparent: true, opacity: 0.8 }));
+const bEdges = new THREE.LineSegments(new THREE.EdgesGeometry(base.geometry), new THREE.LineBasicMaterial({ color: 0x2899f5, transparent: true, opacity: 0.8 }));
 bEdges.position.copy(base.position); board.add(bEdges);
-const grid = new THREE.GridHelper(1, 28, 0x1f4f7a, 0x16324f); grid.scale.set(W, 1, D); grid.position.y = 0.0006;
+const grid = new THREE.GridHelper(1, 28, 0x3b3a39, 0x2d2c2b); grid.scale.set(W, 1, D); grid.position.y = 0.0006;
 grid.material.transparent = true; grid.material.opacity = 0.35; board.add(grid);
-const scan = new THREE.Mesh(new THREE.PlaneGeometry(W, 0.006), new THREE.MeshBasicMaterial({ color: 0x4cc9f0, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false }));
+const scan = new THREE.Mesh(new THREE.PlaneGeometry(W, 0.006), new THREE.MeshBasicMaterial({ color: 0x2899f5, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false }));
 scan.rotation.x = -Math.PI / 2; scan.position.y = 0.003; board.add(scan);
 
 /* etiquetas */
-function makeTextCanvas(text, { size = 44, color = '#e6f1ff', bg = 'rgba(8,20,36,0.85)', border = '#4cc9f0', pad = 14, weight = 600 } = {}){
+function makeTextCanvas(text, { size = 44, color = '#ffffff', bg = 'rgba(37,36,35,0.92)', border = '#2899f5', pad = 14, weight = 600 } = {}){
   const c = document.createElement('canvas'); const ctx = c.getContext('2d');
   const font = `${weight} ${size}px "Segoe UI", Arial, sans-serif`; ctx.font = font;
   const w = Math.ceil(ctx.measureText(text).width) + pad * 2, h = size + pad * 2;
@@ -292,19 +292,19 @@ let T = map;
 for (const zn of ZONES){
   const [x0, x1] = zn.x, [z0, z1] = zn.z;
   if (zn.kind === 'vnet'){
-    flatPlate(x0, x1, z0, z1, 0.001, 0x0f2d4b, 0.6, 0x4cc9f0, false);
-    const wall = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, 0.016, z1 - z0), new THREE.MeshBasicMaterial({ color: 0x4cc9f0, transparent: true, opacity: 0.05, depthWrite: false }));
+    flatPlate(x0, x1, z0, z1, 0.001, 0x0f2d4b, 0.6, 0x2899f5, false);
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, 0.016, z1 - z0), new THREE.MeshBasicMaterial({ color: 0x2899f5, transparent: true, opacity: 0.05, depthWrite: false }));
     wall.position.set((x0 + x1) / 2, 0.008, (z0 + z1) / 2); T.add(wall);
-    const we = new THREE.LineSegments(new THREE.EdgesGeometry(wall.geometry), new THREE.LineBasicMaterial({ color: 0x4cc9f0, transparent: true, opacity: 0.6 }));
+    const we = new THREE.LineSegments(new THREE.EdgesGeometry(wall.geometry), new THREE.LineBasicMaterial({ color: 0x2899f5, transparent: true, opacity: 0.6 }));
     we.position.copy(wall.position); T.add(we);
-    placeFlatLabel(zn.name, x0 + 0.008, z0 + 0.024, 0.022, { bg: null, color: '#9fe8ff', size: 40, weight: 700 });
+    placeFlatLabel(zn.name, x0 + 0.008, z0 + 0.024, 0.022, { bg: null, color: '#6cb8f6', size: 40, weight: 700 });
     for (const sn of zn.subnets){
-      flatPlate(x0 + 0.01, x1 - 0.01, sn.z[0], sn.z[1], 0.0025, sn.warn ? 0x3a2a10 : 0x173f63, 0.65, sn.warn ? 0xff9f1c : 0x2c6e9e, !!sn.warn);
-      placeFlatLabel(sn.name, x0 + 0.016, sn.z[1] - 0.013, 0.017, { bg: null, color: sn.warn ? '#ffbf69' : '#a8dcff', size: 40 });
+      flatPlate(x0 + 0.01, x1 - 0.01, sn.z[0], sn.z[1], 0.0025, sn.warn ? 0x3a2a10 : 0x173f63, 0.65, sn.warn ? 0xf7630c : 0x2b88d8, !!sn.warn);
+      placeFlatLabel(sn.name, x0 + 0.016, sn.z[1] - 0.013, 0.017, { bg: null, color: sn.warn ? '#ffaa44' : '#9ccbf2', size: 40 });
     }
   } else {
-    flatPlate(x0, x1, z0, z1, 0.001, zn.kind === 'paas' ? 0x1a2446 : 0x141c2a, 0.6, zn.kind === 'paas' ? 0x8a7cf0 : 0x5f7a99, true);
-    placeFlatLabel(zn.name, x0 + 0.008, z1 - 0.014, 0.018, { bg: null, color: zn.kind === 'paas' ? '#c9c1ff' : '#b9cde6', size: 40 });
+    flatPlate(x0, x1, z0, z1, 0.001, zn.kind === 'paas' ? 0x2a1f4a : 0x2d2c2b, 0.6, zn.kind === 'paas' ? 0x8661c5 : 0x8a8886, true);
+    placeFlatLabel(zn.name, x0 + 0.008, z1 - 0.014, 0.018, { bg: null, color: zn.kind === 'paas' ? '#b4a0e0' : '#d2d0ce', size: 40 });
   }
 }
 
@@ -342,7 +342,8 @@ const textTex = (txt, fg, bg) => canvasTex('t' + txt + fg + bg, 128, 80, (x, w, 
   x.fillStyle = fg; x.font = '800 54px "Segoe UI", Arial'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(txt, w / 2, h / 2 + 3);
 });
 
-const TYPE_COL = { vm: 0x2f8fe0, sqlserver: 0x6c63d9, sqldb: 0x7b73e6, storage: 0x22a3b5, keyvault: 0xaab6c4, webapp: 0x4f7cff, vpngw: 0x8c5bd6, nsg: 0x3d6fb0, pip: 0xa45bd6, pe: 0x22a3b5, warn: 0x8a8f99, subscription: 0x5b8def, internet: 0xd6ecff, onprem: 0x9aa5b1 };
+/* paleta inspirada en Azure / Microsoft Fluent */
+const TYPE_COL = { vm: 0x0078d4, sqlserver: 0x005ba1, sqldb: 0x1490df, storage: 0x00a2ad, keyvault: 0x8a8886, webapp: 0x2899f5, vpngw: 0x773adc, nsg: 0x005ba1, pip: 0x8661c5, pe: 0x00a2ad, warn: 0x8a8886, subscription: 0x0078d4, internet: 0xf3f2f1, onprem: 0xa19f9d };
 let scheme = 'tipo';
 try { scheme = localStorage.getItem('tablero-colores') || 'tipo'; } catch (e) {}
 function buildModel(type, hex){
@@ -428,7 +429,7 @@ function buildModel(type, hex){
       const a = accent();
       add(new THREE.SphereGeometry(0.012, 24, 16), a, 0, 0.034, 0);
       add(new THREE.ConeGeometry(0.0105, 0.024, 24), a, 0, 0.018, 0, Math.PI);
-      add(new THREE.PlaneGeometry(0.016, 0.01), new THREE.MeshBasicMaterial({ map: textTex('IP', '#04121f', null), transparent: true }), 0, 0.034, 0.0122);
+      add(new THREE.PlaneGeometry(0.016, 0.01), new THREE.MeshBasicMaterial({ map: textTex('IP', '#11100f', null), transparent: true }), 0, 0.034, 0.0122);
       add(C(0.008, 0.008, 0.0015, 20), shell(0x1b2b3f), 0, 0.00075, 0);
       h = 0.047; break;
     }
@@ -516,7 +517,7 @@ CATALOG.forEach(([type, name, desc], i) => {
   const statusOverride = type === 'internet' || type === 'onprem' ? COL.ext : type === 'warn' ? COL.Media : COL.ok;
   addNode({ id: 'cat-' + type, name, type, typeLabel: 'Catálogo de modelos', desc, checks: [], statusOverride, labelText: name, pos: [-0.42 + col * 0.21, -0.2 + row * 0.2] });
 });
-const catTitle = makeFlatLabel('Catálogo de modelos 3D · toca uno para ver qué representa', 0.024, { bg: null, color: '#9fe8ff', size: 40, weight: 700 });
+const catTitle = makeFlatLabel('Catálogo de modelos 3D · toca uno para ver qué representa', 0.024, { bg: null, color: '#6cb8f6', size: 40, weight: 700 });
 catTitle.position.set(0, 0.003, 0.3); catalog.add(catTitle);
 T = map;
 
@@ -571,12 +572,12 @@ const toolBtns = {};
 const toolbar = new THREE.Group(); board.add(toolbar);
 TOOLS.forEach(([action, text], i) => {
   const bw = 0.128, x = -((TOOLS.length - 1) * 0.139) / 2 + i * 0.139;
-  const m = new THREE.Mesh(new THREE.BoxGeometry(bw, 0.012, 0.042), new THREE.MeshStandardMaterial({ color: 0x14324f, emissive: 0x4cc9f0, emissiveIntensity: 0.25 }));
+  const m = new THREE.Mesh(new THREE.BoxGeometry(bw, 0.012, 0.042), new THREE.MeshStandardMaterial({ color: 0x14324f, emissive: 0x2899f5, emissiveIntensity: 0.25 }));
   m.position.set(x, 0.006, D / 2 + 0.045); m.userData.action = action; toolbar.add(m); pickables.push(m);
   const l = makeFlatLabel(text, 0.017, { bg: null, size: 40 }); l.position.set(x, 0.0125, D / 2 + 0.045); toolbar.add(l);
   toolBtns[action] = m;
 });
-const selRing = new THREE.Mesh(new THREE.RingGeometry(0.036, 0.043, 48), new THREE.MeshBasicMaterial({ color: 0x4cc9f0, transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
+const selRing = new THREE.Mesh(new THREE.RingGeometry(0.036, 0.043, 48), new THREE.MeshBasicMaterial({ color: 0x2899f5, transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
 selRing.rotation.x = -Math.PI / 2; selRing.visible = false; board.add(selRing);
 
 const placeHint = makeLabel('Mira tu mesa y pellizca para fijar el tablero', 0.03, { size: 44 });
@@ -591,9 +592,9 @@ function makePanel(wPx, hPx, wM){
 }
 function panelFrame(ctx, w, h, title){
   ctx.clearRect(0, 0, w, h);
-  rr(ctx, 4, 4, w - 8, h - 8, 28); ctx.fillStyle = 'rgba(6,18,32,0.9)'; ctx.fill();
-  ctx.strokeStyle = 'rgba(76,201,240,0.85)'; ctx.lineWidth = 4; ctx.stroke();
-  ctx.fillStyle = '#e6f1ff'; ctx.font = '700 40px "Segoe UI", Arial'; ctx.textBaseline = 'alphabetic';
+  rr(ctx, 4, 4, w - 8, h - 8, 28); ctx.fillStyle = 'rgba(32,31,30,0.94)'; ctx.fill();
+  ctx.strokeStyle = 'rgba(0,120,212,0.9)'; ctx.lineWidth = 4; ctx.stroke();
+  ctx.fillStyle = '#ffffff'; ctx.font = '700 40px "Segoe UI", Arial'; ctx.textBaseline = 'alphabetic';
   const t = wrap(ctx, title, w - 80)[0]; ctx.fillText(t, 40, 70);
 }
 
@@ -602,13 +603,13 @@ summary.mesh.position.set(-0.3, 0.36, -0.5); summary.mesh.rotation.set(-0.2, 0.2
 function drawSummary(){
   const { ctx, c } = summary; const w = c.width, h = c.height;
   panelFrame(ctx, w, h, 'Defender for Cloud · Resumen');
-  ctx.fillStyle = '#8fb3d9'; ctx.font = '400 26px "Segoe UI", Arial'; ctx.fillText(DATA.tenant, 40, 108);
+  ctx.fillStyle = '#c8c6c4'; ctx.font = '400 26px "Segoe UI", Arial'; ctx.fillText(DATA.tenant, 40, 108);
   const cx = 190, cy = 290, r = 105, p = DATA.secureScore / 100;
-  ctx.lineWidth = 26; ctx.strokeStyle = '#1c3350'; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+  ctx.lineWidth = 26; ctx.strokeStyle = '#3b3a39'; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
   ctx.strokeStyle = p >= 0.75 ? COL.ok : p >= 0.5 ? COL.Baja : COL.Media; ctx.lineCap = 'round';
   ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * p); ctx.stroke(); ctx.lineCap = 'butt';
-  ctx.fillStyle = '#e6f1ff'; ctx.font = '700 62px "Segoe UI", Arial'; ctx.textAlign = 'center'; ctx.fillText(DATA.secureScore + '%', cx, cy + 22);
-  ctx.font = '400 24px "Segoe UI", Arial'; ctx.fillStyle = '#8fb3d9'; ctx.fillText('Puntuación de seguridad', cx, cy + r + 48); ctx.textAlign = 'left';
+  ctx.fillStyle = '#ffffff'; ctx.font = '700 62px "Segoe UI", Arial'; ctx.textAlign = 'center'; ctx.fillText(DATA.secureScore + '%', cx, cy + 22);
+  ctx.font = '400 24px "Segoe UI", Arial'; ctx.fillStyle = '#c8c6c4'; ctx.fillText('Puntuación de seguridad', cx, cy + r + 48); ctx.textAlign = 'left';
   const evald = NODES.filter(n => n.checks.length);
   const cnt = { Alta: 0, Media: 0, Baja: 0 }; let badRes = 0;
   for (const it of evald){ let b = false; for (const ch of it.checks) if (!ch.ok){ cnt[ch.s]++; b = true; } if (b) badRes++; }
@@ -616,20 +617,20 @@ function drawSummary(){
   const y = 548; ctx.font = '600 24px "Segoe UI", Arial';
   [['Alta', cnt.Alta], ['Media', cnt.Media], ['Baja', cnt.Baja]].forEach(([k, v], i) => {
     const x = 50 + i * 115; ctx.fillStyle = COL[k]; ctx.beginPath(); ctx.arc(x, y - 9, 10, 0, 7); ctx.fill();
-    ctx.fillStyle = '#e6f1ff'; ctx.fillText(`${v} ${k}`, x + 18, y);
+    ctx.fillStyle = '#ffffff'; ctx.fillText(`${v} ${k}`, x + 18, y);
   });
-  ctx.fillStyle = '#8fb3d9'; ctx.font = '400 24px "Segoe UI", Arial';
+  ctx.fillStyle = '#c8c6c4'; ctx.font = '400 24px "Segoe UI", Arial';
   ctx.fillText(`${badRes} de ${evald.length} recursos con fallos`, 40, 596);
   ctx.fillStyle = COL.Media; ctx.fillText(`${badLinks} de ${LINKS.length} conexiones con riesgo`, 40, 634);
-  ctx.fillStyle = '#e6f1ff'; ctx.font = '600 30px "Segoe UI", Arial'; ctx.fillText('Cumplimiento normativo', 420, 170);
+  ctx.fillStyle = '#ffffff'; ctx.font = '600 30px "Segoe UI", Arial'; ctx.fillText('Cumplimiento normativo', 420, 170);
   DATA.compliance.forEach((s, i) => {
     const yy = 230 + i * 100, bw = 560, pr = s.passed / s.total;
-    ctx.fillStyle = '#cfe2f7'; ctx.font = '400 25px "Segoe UI", Arial'; ctx.fillText(s.name, 420, yy);
+    ctx.fillStyle = '#e1dfdd'; ctx.font = '400 25px "Segoe UI", Arial'; ctx.fillText(s.name, 420, yy);
     ctx.textAlign = 'right'; ctx.fillText(`${s.passed}/${s.total}`, 420 + bw, yy); ctx.textAlign = 'left';
-    rr(ctx, 420, yy + 14, bw, 20, 10); ctx.fillStyle = '#1c3350'; ctx.fill();
-    rr(ctx, 420, yy + 14, Math.max(20, bw * pr), 20, 10); ctx.fillStyle = pr >= 0.75 ? COL.ok : pr >= 0.5 ? COL.Baja : '#4cc9f0'; ctx.fill();
+    rr(ctx, 420, yy + 14, bw, 20, 10); ctx.fillStyle = '#3b3a39'; ctx.fill();
+    rr(ctx, 420, yy + 14, Math.max(20, bw * pr), 20, 10); ctx.fillStyle = pr >= 0.75 ? COL.ok : pr >= 0.5 ? COL.Baja : '#2899f5'; ctx.fill();
   });
-  ctx.fillStyle = '#ffd23f'; ctx.font = '600 22px "Segoe UI", Arial'; ctx.fillText('DEMO · datos ficticios', 420, 650);
+  ctx.fillStyle = '#ffb900'; ctx.font = '600 22px "Segoe UI", Arial'; ctx.fillText('DEMO · datos ficticios', 420, 650);
   summary.tex.needsUpdate = true;
 }
 
@@ -639,35 +640,35 @@ function drawDetail(it){
   const { ctx, c } = detail; const w = c.width, h = c.height;
   if (!it){
     panelFrame(ctx, w, h, 'Detalle');
-    ctx.fillStyle = '#8fb3d9'; ctx.font = '400 30px "Segoe UI", Arial';
+    ctx.fillStyle = '#c8c6c4'; ctx.font = '400 30px "Segoe UI", Arial';
     wrap(ctx, 'Apunta a un recurso o a un cable y pellizca. Los cables gruesos de color son conexiones con riesgo; los finos verdes, conexiones correctas.', w - 80).forEach((l, i) => ctx.fillText(l, 40, 140 + i * 42));
     detail.tex.needsUpdate = true; return;
   }
   panelFrame(ctx, w, h, it.name);
-  ctx.fillStyle = '#8fb3d9'; ctx.font = '400 26px "Segoe UI", Arial';
+  ctx.fillStyle = '#c8c6c4'; ctx.font = '400 26px "Segoe UI", Arial';
   const ml = wrap(ctx, metaLine(it), w - 80); ml.forEach((l, i) => ctx.fillText(l, 40, 110 + i * 32));
   let y = 110 + ml.length * 32 + 20;
-  if (it.desc){ ctx.fillStyle = '#e6f1ff'; ctx.font = '400 30px "Segoe UI", Arial'; wrap(ctx, it.desc, w - 80).forEach((l, i) => ctx.fillText(l, 40, y + i * 40)); detail.tex.needsUpdate = true; return; }
+  if (it.desc){ ctx.fillStyle = '#ffffff'; ctx.font = '400 30px "Segoe UI", Arial'; wrap(ctx, it.desc, w - 80).forEach((l, i) => ctx.fillText(l, 40, y + i * 40)); detail.tex.needsUpdate = true; return; }
   if (!it.checks.length){
-    ctx.fillStyle = '#b9cde6'; ctx.font = '400 28px "Segoe UI", Arial';
+    ctx.fillStyle = '#d2d0ce'; ctx.font = '400 28px "Segoe UI", Arial';
     wrap(ctx, 'Elemento externo a Azure: Defender for Cloud no lo evalúa. Mira los cables que salen de él.', w - 80).forEach((l, i) => ctx.fillText(l, 40, y + i * 38));
     detail.tex.needsUpdate = true; return;
   }
   const ok = it.checks.filter(x => x.ok).length, ko = it.checks.length - ok;
   ctx.font = '600 28px "Segoe UI", Arial'; ctx.fillStyle = COL.ok; ctx.fillText(`✔ ${ok} correctos`, 40, y);
-  ctx.fillStyle = ko ? COL.Alta : '#8fb3d9'; ctx.fillText(`✖ ${ko} con fallo`, 300, y);
+  ctx.fillStyle = ko ? COL.Alta : '#c8c6c4'; ctx.fillText(`✖ ${ko} con fallo`, 300, y);
   y += 56;
   for (const ch of sortChecks(it.checks)){
-    if (y > h - 60){ ctx.fillStyle = '#8fb3d9'; ctx.font = '400 24px "Segoe UI", Arial'; ctx.fillText('… más controles en la vista de escritorio', 40, h - 30); break; }
+    if (y > h - 60){ ctx.fillStyle = '#c8c6c4'; ctx.font = '400 24px "Segoe UI", Arial'; ctx.fillText('… más controles en la vista de escritorio', 40, h - 30); break; }
     ctx.fillStyle = ch.ok ? COL.ok : COL[ch.s]; ctx.font = '700 30px "Segoe UI", Arial'; ctx.fillText(ch.ok ? '✔' : '✖', 40, y);
-    ctx.font = '600 27px "Segoe UI", Arial'; ctx.fillStyle = '#e6f1ff';
+    ctx.font = '600 27px "Segoe UI", Arial'; ctx.fillStyle = '#ffffff';
     const lines = wrap(ctx, ch.t, w - 330); lines.forEach((l, i) => ctx.fillText(l, 85, y + i * 34));
     ctx.font = '600 22px "Segoe UI", Arial'; const tag = ch.s ? `${ch.s} · ${ch.d}` : 'OK'; const tw = ctx.measureText(tag).width + 20;
-    rr(ctx, w - 40 - tw, y - 26, tw, 34, 8); ctx.fillStyle = ch.ok ? '#16324f' : COL[ch.s]; ctx.fill();
-    ctx.fillStyle = ch.ok ? '#b9cde6' : '#04121f'; ctx.fillText(tag, w - 30 - tw, y - 2);
+    rr(ctx, w - 40 - tw, y - 26, tw, 34, 8); ctx.fillStyle = ch.ok ? '#323130' : COL[ch.s]; ctx.fill();
+    ctx.fillStyle = ch.ok ? '#d2d0ce' : '#11100f'; ctx.fillText(tag, w - 30 - tw, y - 2);
     y += lines.length * 34;
     if (!ch.ok && ch.fix){
-      ctx.font = '400 24px "Segoe UI", Arial'; ctx.fillStyle = '#9fe8ff';
+      ctx.font = '400 24px "Segoe UI", Arial'; ctx.fillStyle = '#6cb8f6';
       const fl = wrap(ctx, '→ ' + ch.fix, w - 140); fl.forEach((l, i) => ctx.fillText(l, 85, y + 4 + i * 30)); y += fl.length * 30 + 4;
     }
     y += 26;
@@ -678,11 +679,11 @@ function drawDetail(it){
 const detailEl = document.getElementById('detail');
 function renderDetailHTML(it){
   const head = `<h2>${esc(it.name)}</h2><div class="meta">${esc(metaLine(it))}</div>`;
-  if (it.desc){ detailEl.innerHTML = head + `<div class="hint" style="color:#e6f1ff;font-size:13px">${esc(it.desc)}</div>`; return; }
+  if (it.desc){ detailEl.innerHTML = head + `<div class="hint" style="color:#ffffff;font-size:13px">${esc(it.desc)}</div>`; return; }
   if (!it.checks.length){ detailEl.innerHTML = head + '<div class="hint">Elemento externo a Azure: Defender for Cloud no lo evalúa. Mira los cables que salen de él.</div>'; return; }
   const ok = it.checks.filter(x => x.ok).length;
   detailEl.innerHTML = head + `<div class="meta">✔ ${ok} correctos · ✖ ${it.checks.length - ok} con fallo</div>` +
-    sortChecks(it.checks).map(ch => `<div class="chk"><span style="color:${ch.ok ? COL.ok : COL[ch.s]};font-weight:700">${ch.ok ? '✔' : '✖'}</span> <b>${esc(ch.t)}</b><span class="tag" style="${ch.ok ? '' : `background:${COL[ch.s]};color:#04121f`}">${ch.s ? `${ch.s} · MCSB ${ch.d}` : 'OK'}</span>${!ch.ok && ch.fix ? `<div class="fix">→ ${esc(ch.fix)}</div>` : ''}</div>`).join('') +
+    sortChecks(it.checks).map(ch => `<div class="chk"><span style="color:${ch.ok ? COL.ok : COL[ch.s]};font-weight:700">${ch.ok ? '✔' : '✖'}</span> <b>${esc(ch.t)}</b><span class="tag" style="${ch.ok ? '' : `background:${COL[ch.s]};color:#11100f`}">${ch.s ? `${ch.s} · MCSB ${ch.d}` : 'OK'}</span>${!ch.ok && ch.fix ? `<div class="fix">→ ${esc(ch.fix)}</div>` : ''}</div>`).join('') +
     `<span class="azbtn">↗ Abrir en Azure · disponible con datos reales</span>` +
     `<div class="hint" style="margin-top:10px">Severidades, textos y dominios MCSB de ejemplo. En la versión conectada salen tal cual de Defender for Cloud.</div>`;
 }
@@ -855,7 +856,7 @@ function onXRStart(session){
     .then(src => { hitTestSource = src; }).catch(() => { hitTestSource = null; });
   session.addEventListener('end', () => {
     hitTestSource = null; placing = false; placeHint.visible = false;
-    scene.background = BG; renderer.setClearColor(0x050b14, 1);
+    scene.background = BG; renderer.setClearColor(0x11100f, 1);
     board.position.set(0, 0, 0); board.rotation.set(0, 0, 0); board.visible = true;
   });
 }
@@ -863,7 +864,7 @@ function onXRStart(session){
 const controllers = [];
 for (let i = 0; i < 2; i++){
   const ctrl = renderer.xr.getController(i);
-  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1)]), new THREE.LineBasicMaterial({ color: 0x4cc9f0, transparent: true, opacity: 0.7 }));
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1)]), new THREE.LineBasicMaterial({ color: 0x2899f5, transparent: true, opacity: 0.7 }));
   line.scale.z = 0.6; ctrl.add(line); ctrl.userData.line = line;
   ctrl.addEventListener('select', () => onSelectXR(ctrl));
   ctrl.addEventListener('selectstart', () => {
