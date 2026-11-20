@@ -29,6 +29,8 @@
   #tools button{padding:8px 11px;border-radius:8px;border:1px solid #2c6e9e;background:#252423;color:#e1dfdd;font-size:13px;font-weight:600;cursor:pointer}
   #tools button:hover{border-color:#2899f5}
   #tools button.on{background:#2899f5;color:#11100f;border-color:#2899f5}
+  #pages button{flex:1;padding:7px 4px;border-radius:8px;border:1px solid #2b88d8;background:#252423;color:#e1dfdd;font-size:12px;font-weight:600;cursor:pointer}
+  #pages button.on{background:#0078d4;color:#fff;border-color:#0078d4}
   @media (max-width:860px){#hud{width:auto;right:16px}#detail{top:auto;bottom:16px;left:16px;right:16px;width:auto;max-height:42%}}
 </style>
 <script type="importmap">
@@ -43,8 +45,9 @@
 
 <div id="hud" class="card">
   <h1>Mapa de red holográfico · Defender for Cloud</h1>
-  <div class="sub">Prototipo v0.6 · <b>datos de ejemplo ficticios</b>. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
+  <div class="sub">Prototipo v0.7 · <b>datos de ejemplo ficticios</b>. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
   <button id="cat" style="width:100%;padding:9px;border-radius:10px;border:1px solid #2899f5;background:transparent;color:#6cb8f6;font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px">Ver catálogo de modelos 3D</button>
+  <div id="pages" style="display:none;gap:6px;margin-bottom:8px"><button data-p="res">Recursos</button><button data-p="zon">Zonas</button><button data-p="via">Vías y controles</button></div>
   <button id="xr" disabled>Comprobando realidad mixta…</button>
   <div id="msg"></div>
   <div class="legend">
@@ -343,7 +346,7 @@ const textTex = (txt, fg, bg) => canvasTex('t' + txt + fg + bg, 128, 80, (x, w, 
 });
 
 /* paleta inspirada en Azure / Microsoft Fluent */
-const TYPE_COL = { vm: 0x0078d4, sqlserver: 0x005ba1, sqldb: 0x1490df, storage: 0x00a2ad, keyvault: 0x8a8886, webapp: 0x2899f5, vpngw: 0x773adc, nsg: 0x005ba1, pip: 0x8661c5, pe: 0x00a2ad, warn: 0x8a8886, subscription: 0x0078d4, internet: 0xf3f2f1, onprem: 0xa19f9d };
+const TYPE_COL = { vm: 0x0078d4, sqlserver: 0x005ba1, sqldb: 0x1490df, storage: 0x00a2ad, keyvault: 0x8a8886, webapp: 0x2899f5, vpngw: 0x773adc, nsg: 0x005ba1, pip: 0x8661c5, pe: 0x00a2ad, warn: 0x8a8886, subscription: 0x0078d4, internet: 0xf3f2f1, onprem: 0xa19f9d, vmss: 0x0078d4, aks: 0x326ce5, functions: 0x2899f5, lb: 0x0078d4, natgw: 0x773adc, firewall: 0x8a8886, appgw: 0x005ba1, bastion: 0x5c2d91, cosmos: 0x1490df, loganalytics: 0x0078d4 };
 let scheme = 'tipo';
 try { scheme = localStorage.getItem('tablero-colores') || 'tipo'; } catch (e) {}
 function buildModel(type, hex){
@@ -451,6 +454,75 @@ function buildModel(type, hex){
       [-0.0038, 0.0038].forEach(x => add(B(0.0024, 0.009, 0.0016), a, x, 0.0225, 0));
       h = 0.027; break;
     }
+    case 'vmss': { // conjunto de escalado: varias torres en fila
+      add(B(0.064, 0.003, 0.03), shell(0x1b2b3f), 0, 0.0015, 0);
+      const a = accent();
+      [-0.02, 0, 0.02].forEach(x => { add(B(0.015, 0.042, 0.026), shell(), x, 0.024, 0); add(new THREE.SphereGeometry(0.002, 8, 6), a, x, 0.038, 0.0135); });
+      h = 0.046; break;
+    }
+    case 'aks': { // timón (Kubernetes) con contenedores
+      const sh = shell(), a = accent();
+      add(new THREE.TorusGeometry(0.017, 0.0025, 10, 32), sh, 0, 0.034, 0);
+      for (let k = 0; k < 7; k++){ const an = k * Math.PI * 2 / 7; add(C(0.0012, 0.0012, 0.017, 6), sh, Math.sin(an) * 0.0085, 0.034 + Math.cos(an) * 0.0085, 0, 0, 0, -an); }
+      add(C(0.004, 0.004, 0.004, 16), a, 0, 0.034, 0, Math.PI / 2);
+      [-0.017, 0, 0.017].forEach((x, k) => add(B(0.014, 0.01, 0.012), shell([0x2b88d8, 0x005ba1, 0x1490df][k]), x, 0.005, 0.012));
+      h = 0.054; break;
+    }
+    case 'functions': { // rayo
+      const s = new THREE.Shape(); s.moveTo(0.003, 0.025); s.lineTo(-0.011, 0.002); s.lineTo(-0.001, 0.002); s.lineTo(-0.006, -0.025); s.lineTo(0.011, 0.004); s.lineTo(0.001, 0.004); s.lineTo(0.007, 0.025); s.closePath();
+      const bg = new THREE.ExtrudeGeometry(s, { depth: 0.005, bevelEnabled: false }); bg.translate(0, 0, -0.0025);
+      add(bg, accent(), 0, 0.031, 0);
+      add(C(0.014, 0.016, 0.004, 24), shell(), 0, 0.002, 0);
+      h = 0.058; break;
+    }
+    case 'lb': { // rotonda
+      add(new THREE.TorusGeometry(0.019, 0.0045, 8, 40), shell(0x4a4846), 0, 0.003, 0, Math.PI / 2);
+      add(C(0.012, 0.012, 0.008, 28), accent(), 0, 0.004, 0);
+      [0, 1, 2, 3].forEach(k => { const an = k * Math.PI / 2; add(B(0.012, 0.003, 0.008), shell(0x4a4846), Math.cos(an) * 0.029, 0.0015, Math.sin(an) * 0.029, 0, -an, 0); });
+      h = 0.012; break;
+    }
+    case 'natgw': { // puerta de salida con flecha
+      const sh = shell();
+      add(B(0.005, 0.04, 0.008), sh, -0.016, 0.02, 0); add(B(0.005, 0.04, 0.008), sh, 0.016, 0.02, 0); add(B(0.037, 0.006, 0.01), sh, 0, 0.042, 0);
+      add(new THREE.ConeGeometry(0.008, 0.016, 16), accent(), 0, 0.016, 0.008, Math.PI / 2);
+      add(C(0.003, 0.003, 0.012, 12), accent(), 0, 0.016, -0.004, Math.PI / 2);
+      h = 0.046; break;
+    }
+    case 'firewall': { // muro de ladrillos con llama
+      const brick = new THREE.MeshStandardMaterial({ map: canvasTex('brick', 128, 64, (x, w, hh) => { x.fillStyle = '#a4373a'; x.fillRect(0, 0, w, hh); x.strokeStyle = '#3b1a1a'; x.lineWidth = 3; for (let r = 0; r < 4; r++){ x.beginPath(); x.moveTo(0, r * 16); x.lineTo(w, r * 16); x.stroke(); for (let c = 0; c < 5; c++){ const bx = c * 32 + (r % 2) * 16; x.beginPath(); x.moveTo(bx, r * 16); x.lineTo(bx, r * 16 + 16); x.stroke(); } } }), roughness: 0.9 });
+      add(B(0.054, 0.03, 0.014), brick, 0, 0.015, 0);
+      const a = accent(); add(new THREE.ConeGeometry(0.007, 0.018, 16), a, 0, 0.039, 0); add(new THREE.SphereGeometry(0.0068, 14, 10), a, 0, 0.032, 0);
+      h = 0.048; break;
+    }
+    case 'appgw': { // puerta con arco detector (WAF)
+      const sh = shell();
+      add(B(0.006, 0.042, 0.012), sh, -0.02, 0.021, 0); add(B(0.006, 0.042, 0.012), sh, 0.02, 0.021, 0); add(B(0.046, 0.007, 0.014), sh, 0, 0.0445, 0);
+      const s = new THREE.Shape(); s.absarc(0, 0, 0.016, 0, Math.PI, false); s.lineTo(-0.013, 0); s.absarc(0, 0, 0.013, Math.PI, 0, true); s.lineTo(0.016, 0);
+      const ag = new THREE.ExtrudeGeometry(s, { depth: 0.003, bevelEnabled: false }); ag.translate(0, 0, -0.0015);
+      add(ag, accent(), 0, 0.018, 0.004);
+      h = 0.048; break;
+    }
+    case 'bastion': { // torreón con puerta
+      const sh = shell();
+      add(C(0.016, 0.018, 0.04, 20), sh, 0, 0.02, 0);
+      for (let k = 0; k < 8; k++){ const an = k * Math.PI / 4; add(B(0.006, 0.007, 0.006), sh, Math.sin(an) * 0.0145, 0.0435, Math.cos(an) * 0.0145, 0, an, 0); }
+      add(B(0.009, 0.014, 0.003), accent(), 0, 0.008, 0.0172);
+      h = 0.05; break;
+    }
+    case 'cosmos': { // planeta con anillo
+      add(new THREE.SphereGeometry(0.015, 24, 16), shell(), 0, 0.026, 0);
+      add(new THREE.TorusGeometry(0.023, 0.0016, 8, 48), accent(), 0, 0.026, 0, Math.PI / 2.6, 0, 0.3);
+      add(C(0.008, 0.01, 0.006, 16), shell(0x1b2b3f), 0, 0.003, 0);
+      h = 0.045; break;
+    }
+    case 'loganalytics': { // gráfico de barras con lupa
+      const sh = shell();
+      [[-0.016, 0.014], [-0.006, 0.022], [0.004, 0.017]].forEach(([x, hh]) => add(B(0.007, hh, 0.007), sh, x, hh / 2, -0.004));
+      const a = accent();
+      add(new THREE.TorusGeometry(0.008, 0.0018, 8, 28), a, 0.01, 0.026, 0.006);
+      add(C(0.0018, 0.0018, 0.014, 8), a, 0.017, 0.013, 0.006, 0, 0, 0.6);
+      h = 0.04; break;
+    }
     case 'warn': { // señal de advertencia
       const s = new THREE.Shape(); s.moveTo(0, 0.019); s.lineTo(0.019, -0.013); s.lineTo(-0.019, -0.013); s.closePath();
       const tg = new THREE.ExtrudeGeometry(s, { depth: 0.003, bevelEnabled: false }); tg.translate(0, 0, -0.0015);
@@ -487,39 +559,13 @@ function addNode(item){
   const label = makeLabel(txt, 0.015, { border: statusHex }); label.position.y = topY + 0.021; grp.add(label);
   const pickBall = new THREE.Mesh(new THREE.SphereGeometry(0.034, 12, 8), new THREE.MeshBasicMaterial({ visible: false })); pickBall.position.y = h / 2; grp.add(pickBall);
   label.userData.aspect = label.scale.x / label.scale.y;
-  const rec = { kind: 'node', item, grp, orb, label, h, shells, accents, baseY: topY, anchorY: Math.min(h * 0.5, 0.035), phase: Math.random() * 6.28, bad: n > 0 };
+  const rec = { kind: 'node', s: 1, item, grp, orb, label, h, shells, accents, baseY: topY, anchorY: Math.min(h * 0.5, 0.035), phase: Math.random() * 6.28, bad: n > 0 };
   grp.traverse(o => { if (o.isMesh && o !== glow){ o.userData.rec = rec; pickables.push(o); } });
-  nodeRecs.push(rec); byId[item.id] = rec;
+  rec.anchorY0 = rec.anchorY; nodeRecs.push(rec); byId[item.id] = rec;
   return rec;
 }
 NODES.forEach(addNode);
 
-/* catálogo de modelos (para revisar el diseño de cada tipo) */
-T = catalog;
-const CATALOG = [
-  ['vm', 'Máquina virtual', 'Monitor y torre. La barra superior de la pantalla y el LED de la torre toman el color del estado.'],
-  ['sqlserver', 'SQL Server', 'Pila de discos de base de datos: el servidor lógico que aloja bases de datos.'],
-  ['sqldb', 'Base de datos SQL', 'El cilindro clásico de base de datos; las bandas indican el estado.'],
-  ['storage', 'Cuenta de almacenamiento', 'Archivador con cajones (blobs, archivos, colas, tablas). Las manillas indican el estado.'],
-  ['keyvault', 'Key Vault', 'Caja fuerte de secretos, claves y certificados. La rueda y la manilla indican el estado.'],
-  ['webapp', 'App Service', 'Ventana de navegador: aplicación web publicada.'],
-  ['vpngw', 'VPN Gateway', 'Túnel con candado: conexión cifrada entre redes.'],
-  ['nsg', 'Grupo de seguridad de red', 'Escudo: las reglas que permiten o bloquean tráfico en una subred o NIC.'],
-  ['pip', 'IP pública', 'Chincheta con "IP": punto de entrada desde Internet.'],
-  ['pe', 'Private Endpoint', 'Enchufe: conexión privada a un servicio PaaS desde la VNet.'],
-  ['warn', 'Falta un control', 'Señal de advertencia: algo que debería existir y no está (p. ej. subred sin NSG).'],
-  ['subscription', 'Suscripción / identidad', 'Busto con credencial: controles de identidad y gobierno (MFA, propietarios…).'],
-  ['internet', 'Internet', 'Nube: red pública, fuera de tu control.'],
-  ['onprem', 'Oficina / on-premises', 'Edificio: red local de la empresa.']
-];
-CATALOG.forEach(([type, name, desc], i) => {
-  const col = i % 5, row = Math.floor(i / 5);
-  const statusOverride = type === 'internet' || type === 'onprem' ? COL.ext : type === 'warn' ? COL.Media : COL.ok;
-  addNode({ id: 'cat-' + type, name, type, typeLabel: 'Catálogo de modelos', desc, checks: [], statusOverride, labelText: name, pos: [-0.42 + col * 0.21, -0.2 + row * 0.2] });
-});
-const catTitle = makeFlatLabel('Catálogo de modelos 3D · toca uno para ver qué representa', 0.024, { bg: null, color: '#6cb8f6', size: 40, weight: 700 });
-catTitle.position.set(0, 0.003, 0.3); catalog.add(catTitle);
-T = map;
 
 /* cables */
 function endPoint(id, pos){
@@ -567,16 +613,187 @@ for (const l of linkRecs) for (const id of [l.L.from, l.L.to]) if (id) (nodeLink
 for (const r of nodeRecs){ r.s = 1; r.anchorY0 = r.anchorY; }
 
 /* barra de herramientas 3D (útil en RM; en escritorio hay otra en HTML) */
-const TOOLS = [['move', '⟲ Colocar'], ['edit', '✋ Editar'], ['pminus', 'Pieza −'], ['pplus', 'Pieza +'], ['mminus', 'Maqueta −'], ['mplus', 'Maqueta +'], ['reset', '↺ Restablecer'], ['colors', '🎨 Colores']];
+const TOOLS = [['move', '⟲ Colocar'], ['edit', '✋ Editar'], ['pminus', 'Pieza −'], ['pplus', 'Pieza +'], ['mminus', 'Maqueta −'], ['mplus', 'Maqueta +'], ['reset', '↺ Restablecer'], ['colors', '🎨 Colores'], ['catalog', '📘 Catálogo']];
 const toolBtns = {};
 const toolbar = new THREE.Group(); board.add(toolbar);
 TOOLS.forEach(([action, text], i) => {
-  const bw = 0.128, x = -((TOOLS.length - 1) * 0.139) / 2 + i * 0.139;
+  const bw = 0.116, x = -((TOOLS.length - 1) * 0.125) / 2 + i * 0.125;
   const m = new THREE.Mesh(new THREE.BoxGeometry(bw, 0.012, 0.042), new THREE.MeshStandardMaterial({ color: 0x14324f, emissive: 0x2899f5, emissiveIntensity: 0.25 }));
   m.position.set(x, 0.006, D / 2 + 0.045); m.userData.action = action; toolbar.add(m); pickables.push(m);
-  const l = makeFlatLabel(text, 0.017, { bg: null, size: 40 }); l.position.set(x, 0.0125, D / 2 + 0.045); toolbar.add(l);
+  const l = makeFlatLabel(text, 0.0155, { bg: null, size: 40 }); l.position.set(x, 0.0125, D / 2 + 0.045); toolbar.add(l);
   toolBtns[action] = m;
 });
+/* ===================== catálogo 3D v2: recursos, zonas, vías y controles ===================== */
+const catRes = new THREE.Group(), catZon = new THREE.Group(), catVia = new THREE.Group();
+catalog.add(catRes, catZon, catVia);
+const roadDots = [];
+function infoRec(grp, name, typeLabel, desc){
+  const rec = { kind: 'info', item: { name, typeLabel, desc, checks: [] }, grp };
+  grp.traverse(o => { if (o.isMesh){ o.userData.rec = rec; pickables.push(o); } });
+  return rec;
+}
+function flatText(parent, text, x, z, h, color = '#ffffff', left = true, weight = 600, y = 0.0045){
+  const l = makeFlatLabel(text, h, { bg: null, color, size: 40, weight });
+  l.position.set(left ? x + l.geometry.parameters.width / 2 : x, y, z); parent.add(l); return l;
+}
+
+/* --- página 1: recursos --- */
+T = catRes;
+const RES = [
+  ['vm', 'Máquina virtual', 'Monitor y torre: un servidor virtual (Windows o Linux).'],
+  ['vmss', 'Conjunto de escalado (VMSS)', 'Varias torres iguales: un grupo de VMs que crece o se reduce según la carga.'],
+  ['aks', 'AKS (Kubernetes)', 'Timón con contenedores: clúster de Kubernetes que ejecuta contenedores.'],
+  ['functions', 'Azure Functions', 'Rayo: código que se ejecuta bajo demanda (serverless).'],
+  ['webapp', 'App Service', 'Ventana de navegador: aplicación web publicada.'],
+  ['sqlserver', 'SQL Server', 'Pila de discos: servidor lógico que aloja bases de datos SQL.'],
+  ['sqldb', 'Base de datos SQL', 'Cilindro clásico de base de datos.'],
+  ['cosmos', 'Cosmos DB', 'Planeta con anillo: base de datos NoSQL distribuida globalmente.'],
+  ['storage', 'Cuenta de almacenamiento', 'Archivador con cajones: blobs, archivos, colas y tablas.'],
+  ['keyvault', 'Key Vault', 'Caja fuerte: secretos, claves y certificados.'],
+  ['loganalytics', 'Log Analytics / Sentinel', 'Gráfico con lupa: registros, monitorización y detección.'],
+  ['subscription', 'Suscripción / identidad', 'Busto con credencial: controles de identidad y gobierno (MFA, propietarios).'],
+  ['vpngw', 'VPN Gateway', 'Túnel con candado: conexión cifrada entre redes.'],
+  ['lb', 'Load Balancer', 'Rotonda: reparte el tráfico entre varios servidores.'],
+  ['natgw', 'NAT Gateway', 'Puerta de salida con flecha: salida controlada a Internet.'],
+  ['pip', 'IP pública', 'Chincheta "IP": punto de entrada desde Internet.'],
+  ['pe', 'Private Endpoint', 'Enchufe: conexión privada a un servicio PaaS desde la VNet.'],
+  ['nsg', 'Grupo de seguridad de red', 'Escudo: reglas que permiten o bloquean tráfico en una subred o NIC.'],
+  ['firewall', 'Azure Firewall', 'Muro de ladrillos con llama: la aduana central que filtra el tráfico.'],
+  ['appgw', 'Application Gateway + WAF', 'Puerta con arco detector: entrada web que inspecciona ataques (WAF).'],
+  ['bastion', 'Azure Bastion', 'Torreón con puerta: acceso de administración seguro, sin exponer RDP/SSH.'],
+  ['warn', 'Falta un control', 'Señal de advertencia: algo que debería existir y no está.'],
+  ['internet', 'Internet', 'Nube: red pública, fuera de tu control.'],
+  ['onprem', 'Oficina / on-premises', 'Edificio: red local de la empresa.']
+];
+RES.forEach(([type, name, desc], i) => {
+  const col = i % 6, row = Math.floor(i / 6);
+  const statusOverride = type === 'internet' || type === 'onprem' ? COL.ext : type === 'warn' ? COL.Media : COL.ok;
+  addNode({ id: 'cat-' + type, name, type, typeLabel: 'Catálogo · recurso', desc, checks: [], statusOverride, labelText: name, pos: [-0.46 + col * 0.184, -0.255 + row * 0.165] });
+});
+
+/* --- página 2: zonas --- */
+const ZONE_DEFS = [
+  ['Internet', 'Ciudad exterior', 'Usuarios, atacantes y servicios de terceros. Origen no confiable.', 0x3b3a39, 'internet'],
+  ['Perímetro (DMZ)', 'Murallas y aduana', 'Front Door, Application Gateway + WAF, Azure Firewall, DDoS. Controla todo lo que entra desde Internet. MCSB NS-3, NS-5, NS-6.', 0x4a1f22, 'dmz'],
+  ['Hub', 'Plaza central', 'Servicios compartidos: gateways VPN/ExpressRoute, firewall central, DNS. MCSB NS-1.', 0x0b2a4a, 'hub'],
+  ['Spoke (aplicaciones)', 'Barrio', 'VNet de una aplicación o entorno (producción, desarrollo) con sus subredes. ISO 27001 A.8.22.', 0x0b2a4a, 'spoke'],
+  ['Zona de datos restringida', 'Cámara acorazada', 'Subredes de datos, private endpoints, bases de datos. MCSB DP, NS-2.', 0x10324a, 'data'],
+  ['Gestión', 'Comisaría', 'Bastion, jumpbox, Log Analytics, Sentinel. MCSB PA, LT.', 0x2d2c2b, 'mgmt'],
+  ['Identidad', 'Oficina de pasaportes', 'Entra ID, suscripción, roles y MFA. MCSB IM, PA.', 0x1b2a4a, 'ident'],
+  ['On-premises', 'Ciudad hermana', 'Oficinas y CPD propio, conectados por VPN o ExpressRoute.', 0x2d2c2b, 'onprem'],
+  ['PaaS público', 'Centro comercial abierto', 'Servicios con endpoint público. Al pasar a private endpoint se mudan a la zona de datos. MCSB NS-2.', 0x2a1f4a, 'paas']
+];
+ZONE_DEFS.forEach(([name, metaphor, desc, color, kind], i) => {
+  const col = i % 3, row = Math.floor(i / 3);
+  const cx = -0.37 + col * 0.37, cz = -0.22 + row * 0.2, w = 0.33, d = 0.165;
+  const g = new THREE.Group(); g.position.set(cx, 0, cz); catZon.add(g);
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(w, kind === 'hub' ? 0.012 : 0.006, d), new THREE.MeshStandardMaterial({ color, transparent: true, opacity: kind === 'internet' ? 0.35 : 0.85, roughness: 0.7 }));
+  plate.position.y = kind === 'hub' ? 0.006 : 0.003; g.add(plate);
+  const edgeCol = { dmz: 0xd13438, hub: 0x2899f5, spoke: 0x2899f5, data: 0x50e6ff, mgmt: 0x8a8886, ident: 0x0078d4, onprem: 0x8a8886, paas: 0x8661c5, internet: 0x605e5c }[kind];
+  const pe = new THREE.LineSegments(new THREE.EdgesGeometry(plate.geometry), new THREE.LineBasicMaterial({ color: edgeCol })); pe.position.copy(plate.position); g.add(pe);
+  const deco = new THREE.Group(); deco.position.set(0.075, 0, -0.01); g.add(deco);
+  const m = (geo, c, x, y, z) => { const o = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: c, roughness: 0.6 })); o.position.set(x, y, z); deco.add(o); return o; };
+  if (kind === 'internet'){ [[-0.014, 0], [0, 0.007], [0.014, 0]].forEach(([x, y]) => m(new THREE.SphereGeometry(0.012, 16, 12), 0xd6d6d6, x, 0.03 + y, 0)); }
+  if (kind === 'dmz'){ m(new THREE.BoxGeometry(0.11, 0.028, 0.012), 0x8a8886, 0, 0.017, -0.02); m(new THREE.BoxGeometry(0.022, 0.03, 0.014), 0x11100f, 0, 0.016, -0.019); for (let k = -2; k <= 2; k++) m(new THREE.BoxGeometry(0.012, 0.008, 0.012), 0x8a8886, k * 0.024, 0.035, -0.02); }
+  if (kind === 'hub'){ m(new THREE.CylinderGeometry(0.02, 0.02, 0.004, 24), 0x2899f5, 0, 0.014, 0); }
+  if (kind === 'spoke'){ const sp = m(new THREE.BoxGeometry(0.1, 0.004, 0.06), 0x123d66, 0, 0.008, 0); }
+  if (kind === 'data'){ m(new THREE.BoxGeometry(0.012, 0.01, 0.006), 0x50e6ff, 0, 0.012, 0); const sk = new THREE.Mesh(new THREE.TorusGeometry(0.004, 0.0012, 8, 16, Math.PI), new THREE.MeshStandardMaterial({ color: 0x50e6ff })); sk.position.set(0, 0.017, 0); deco.add(sk); const inner = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w - 0.02, 0.006, d - 0.02)), new THREE.LineBasicMaterial({ color: 0x50e6ff })); inner.position.set(-0.075, 0.004, 0.01); deco.add(inner); }
+  if (kind === 'mgmt'){ m(new THREE.CylinderGeometry(0.0015, 0.0015, 0.04, 8), 0xa19f9d, 0, 0.026, 0); m(new THREE.SphereGeometry(0.004, 10, 8), 0x2899f5, 0, 0.047, 0); }
+  if (kind === 'ident'){ m(new THREE.CylinderGeometry(0.016, 0.018, 0.008, 6), 0x3b3a39, 0, 0.01, 0); m(new THREE.SphereGeometry(0.007, 14, 10), 0x0078d4, 0, 0.03, 0); m(new THREE.CylinderGeometry(0.004, 0.01, 0.014, 16), 0x0078d4, 0, 0.019, 0); }
+  if (kind === 'onprem'){ [[-0.02, 0.03], [0, 0.045], [0.02, 0.025]].forEach(([x, hh]) => m(new THREE.BoxGeometry(0.016, hh, 0.016), 0x8a8886, x, hh / 2 + 0.006, 0)); }
+  if (kind === 'paas'){ m(new THREE.BoxGeometry(0.06, 0.016, 0.03), 0x8661c5, 0, 0.014, 0); }
+  flatText(g, name, -w / 2 + 0.012, d / 2 - 0.05, 0.026, '#ffffff', true, 700, 0.014);
+  flatText(g, metaphor, -w / 2 + 0.012, d / 2 - 0.02, 0.02, '#e1dfdd', true, 400, 0.014);
+  infoRec(g, name, 'Zona · ' + metaphor, desc);
+});
+
+/* --- página 3: vías y controles --- */
+function roadStrip(parent, x0, x1, z, width, color = 0x3b3a39){
+  const r = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, 0.003, width), new THREE.MeshStandardMaterial({ color, roughness: 0.9 }));
+  r.position.set((x0 + x1) / 2, 0.0035, z); parent.add(r); return r;
+}
+function dashes(parent, x0, x1, z, color = 0xf3f2f1){
+  for (let x = x0 + 0.01; x < x1 - 0.01; x += 0.025){ const d = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.001, 0.0016), new THREE.MeshBasicMaterial({ color })); d.position.set(x + 0.006, 0.0056, z); parent.add(d); }
+}
+function traffic(parent, x0, x1, z, hex, n = 3, speed = 0.25, y = 0.009){
+  for (let k = 0; k < n; k++){ const c = new THREE.Mesh(new THREE.BoxGeometry(0.009, 0.006, 0.006), new THREE.MeshBasicMaterial({ color: hex })); parent.add(c); roadDots.push({ m: c, x0, x1, z, y, speed, off: k / n }); }
+}
+const ROADS = [
+  ['open', 'Calle abierta', 'Internet → IP pública: cualquiera puede llegar.', 'Una VM o servicio expuesto directamente a Internet, sin muralla ni barrera.'],
+  ['avenue', 'Avenida con puerta', 'Internet → Front Door / App Gateway: entrada controlada.', 'El tráfico web entra por la puerta de la DMZ, donde se inspecciona.'],
+  ['tunnel', 'Túnel', 'VPN sitio a sitio: cifrado y privado.', 'Conexión cifrada entre la oficina y Azure.'],
+  ['highway', 'Autopista privada', 'ExpressRoute: privada y de alta capacidad.', 'Conexión dedicada con el proveedor, sin pasar por Internet.'],
+  ['bridge', 'Puente', 'Peering entre VNets: privado, por la red de Azure.', 'Dos redes virtuales comunicadas directamente.'],
+  ['private', 'Calle privada con barrera', 'Private Endpoint: solo desde la VNet.', 'El servicio PaaS solo es accesible desde la red privada.'],
+  ['public', 'Calle pública (PaaS)', 'Endpoint público de un PaaS: accesible desde fuera.', 'El servicio PaaS acepta conexiones desde Internet.']
+];
+const RX0 = -0.53, RX1 = -0.08;
+flatText(catVia, 'Tipos de vía', RX0, -0.315, 0.022, '#6cb8f6', true, 700);
+ROADS.forEach(([kind, name, sub, desc], i) => {
+  const z = -0.255 + i * 0.087, g = new THREE.Group(); catVia.add(g);
+  const width = kind === 'highway' ? 0.04 : kind === 'avenue' ? 0.032 : 0.022;
+  const bad = kind === 'open' || kind === 'public';
+  if (kind !== 'bridge') roadStrip(g, RX0 + 0.17, RX1, z, width);
+  if (kind === 'open'){ [-1, 1].forEach(sg => { const e = new THREE.Mesh(new THREE.BoxGeometry(RX1 - RX0 - 0.12, 0.001, 0.0016), new THREE.MeshBasicMaterial({ color: 0xd13438 })); e.position.set((RX0 + 0.17 + RX1) / 2, 0.0056, z + sg * width / 2); g.add(e); }); }
+  if (kind === 'avenue'){ dashes(g, RX0 + 0.17, RX1, z); const gm = new THREE.MeshStandardMaterial({ color: 0x8a8886 }); [-1, 1].forEach(sg => { const p = new THREE.Mesh(new THREE.BoxGeometry(0.005, 0.03, 0.005), gm); p.position.set(RX1 - 0.04, 0.015, z + sg * 0.02); g.add(p); }); const bm = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.005, 0.045), gm); bm.position.set(RX1 - 0.04, 0.031, z); g.add(bm); }
+  if (kind === 'tunnel'){ const len = RX1 - RX0 - 0.21; const sh = new THREE.Shape(); sh.absarc(0, 0, 0.018, 0, Math.PI, false); sh.lineTo(-0.015, 0); sh.absarc(0, 0, 0.015, Math.PI, 0, true); sh.lineTo(0.018, 0); const tg = new THREE.ExtrudeGeometry(sh, { depth: len, bevelEnabled: false }); tg.translate(0, 0, -len / 2); const tu = new THREE.Mesh(tg, new THREE.MeshStandardMaterial({ color: 0x773adc, transparent: true, opacity: 0.7 })); tu.rotation.y = Math.PI / 2; tu.position.set((RX0 + 0.17 + RX1) / 2, 0.004, z); g.add(tu); const lk = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.009, 0.004), new THREE.MeshStandardMaterial({ color: 0x6bb700, emissive: 0x6bb700, emissiveIntensity: 0.5 })); lk.position.set((RX0 + 0.17 + RX1) / 2, 0.028, z); g.add(lk); }
+  if (kind === 'highway'){ dashes(g, RX0 + 0.17, RX1, z - 0.007); dashes(g, RX0 + 0.17, RX1, z + 0.007); const tb = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.018, 0.012), new THREE.MeshStandardMaterial({ color: 0x0078d4 })); tb.position.set(RX0 + 0.2, 0.012, z - 0.028); g.add(tb); }
+  if (kind === 'bridge'){ const water = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.002, 0.05), new THREE.MeshStandardMaterial({ color: 0x0b3a6a })); water.position.set((RX0 + 0.17 + RX1) / 2, 0.002, z); g.add(water); const pts = []; for (let k = 0; k <= 24; k++){ const t = k / 24, x = RX0 + 0.17 + t * (RX1 - RX0 - 0.12); pts.push(new THREE.Vector3(x, 0.004 + Math.sin(t * Math.PI) * 0.018, z)); } const deck = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.006, 4, false), new THREE.MeshStandardMaterial({ color: 0x2899f5 })); deck.scale.z = 1; g.add(deck); }
+  if (kind === 'private'){ [-1, 1].forEach(sg => { const c = new THREE.Mesh(new THREE.BoxGeometry(RX1 - RX0 - 0.12, 0.005, 0.003), new THREE.MeshStandardMaterial({ color: 0xa19f9d })); c.position.set((RX0 + 0.17 + RX1) / 2, 0.006, z + sg * 0.012); g.add(c); }); const post = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.016, 0.004), new THREE.MeshStandardMaterial({ color: 0xa19f9d })); post.position.set(RX0 + 0.16, 0.008, z - 0.016); g.add(post); const boom = new THREE.Mesh(new THREE.BoxGeometry(0.003, 0.003, 0.03), new THREE.MeshStandardMaterial({ color: 0x6bb700, emissive: 0x6bb700, emissiveIntensity: 0.4 })); boom.position.set(RX0 + 0.16, 0.015, z); g.add(boom); }
+  if (kind === 'public'){ const mall = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.016, 0.03), new THREE.MeshStandardMaterial({ color: 0x8661c5 })); mall.position.set(RX1 + 0.005, 0.008, z); g.add(mall); }
+  const y = kind === 'tunnel' ? 0.01 : kind === 'bridge' ? 0.02 : 0.009;
+  if (kind !== 'bridge') traffic(g, RX0 + 0.17, RX1 - (kind === 'public' ? 0.02 : 0), z, bad ? 0xd13438 : 0x6bb700, kind === 'highway' ? 5 : 3, kind === 'highway' ? 0.35 : 0.22, y);
+  flatText(g, name, RX0, z - 0.01, 0.019, '#ffffff', true, 700);
+  flatText(g, sub.split(':')[0], RX0, z + 0.014, 0.015, '#e1dfdd', true, 400);
+  infoRec(g, name, 'Vía · ' + sub, desc);
+});
+
+const CX_LABEL = -0.04, CX_OK = 0.27, CX_KO = 0.46;
+flatText(catVia, 'Controles', CX_LABEL, -0.315, 0.022, '#6cb8f6', true, 700);
+flatText(catVia, 'Con control', CX_OK, -0.315, 0.017, '#6bb700', false, 700);
+flatText(catVia, 'Falta', CX_KO, -0.315, 0.017, '#d13438', false, 700);
+const CONTROLS = [
+  ['nsg', 'NSG', 'Barrera en la entrada de la subred', 'Sin NSG la parcela no tiene barrera: el tráfico entra sin filtrar. Defender: "Las subredes deben estar asociadas a un NSG".'],
+  ['firewall', 'Azure Firewall', 'Aduana en el hub', 'Sin firewall, el tráfico sale y entra sin pasar por aduana. Defender: "Las redes virtuales deben protegerse con Azure Firewall".'],
+  ['appgw', 'WAF', 'Arco detector en la puerta web', 'Sin WAF, los ataques web (inyección SQL, XSS) llegan a la aplicación. MCSB NS-6.'],
+  ['bastion', 'Bastion / JIT', 'Puerta de servicio con vigilante', 'Sin Bastion ni JIT, RDP o SSH quedan abiertos a Internet: la puerta trasera está abierta.'],
+  ['ddos', 'DDoS Protection', 'Rompeolas delante de la muralla', 'Sin protección DDoS, una avalancha de tráfico puede tumbar el servicio. MCSB NS-5.']
+];
+function ddosModel(okHex){
+  const g = new THREE.Group();
+  for (let k = -2; k <= 2; k++){ const b = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.01, 0.01), new THREE.MeshStandardMaterial({ color: 0x605e5c })); b.position.set(k * 0.012, 0.006, 0); b.rotation.set(0.5, k, 0.3); g.add(b); }
+  const line = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.002, 0.003), new THREE.MeshBasicMaterial({ color: okHex })); line.position.set(0, 0.014, 0); g.add(line);
+  return g;
+}
+function ghostify(g){
+  const ghost = new THREE.MeshBasicMaterial({ color: 0xf7630c, wireframe: true, transparent: true, opacity: 0.45 });
+  g.traverse(o => { if (o.isMesh) o.material = ghost; });
+}
+CONTROLS.forEach(([type, name, sub, desc], i) => {
+  const z = -0.245 + i * 0.105;
+  flatText(catVia, name, CX_LABEL, z - 0.006, 0.02, '#ffffff', true, 700);
+  flatText(catVia, sub, CX_LABEL, z + 0.018, 0.0135, '#e1dfdd', true, 400);
+  [[CX_OK, true], [CX_KO, false]].forEach(([cx, ok]) => {
+    const g = new THREE.Group(); g.position.set(cx, 0, z); catVia.add(g);
+    roadStrip(g, -0.085, 0.085, 0.018, 0.016);
+    const model = type === 'ddos' ? ddosModel(COL.ok) : buildModel(type, COL.ok).g;
+    model.position.z = -0.004; if (!ok) ghostify(model); g.add(model);
+    if (!ok){ const wm = buildModel('warn', COL.Media).g; wm.scale.setScalar(0.7); wm.position.set(0.05, 0, -0.01); g.add(wm); }
+    traffic(g, -0.085, 0.085, 0.018, ok ? COL.ok : COL.Alta, 3, ok ? 0.18 : 0.3, 0.0085);
+    infoRec(g, `${name} · ${ok ? 'con control' : 'falta'}`, 'Control · ' + sub, ok ? `${sub}. El tráfico pasa filtrado (coches verdes).` : desc);
+  });
+});
+
+/* pestañas 3D del catálogo (detrás del tablero) */
+const PAGES = [['page-map', '⟵ Mapa'], ['page-res', 'Recursos'], ['page-zon', 'Zonas'], ['page-via', 'Vías y controles']];
+PAGES.forEach(([action, text], i) => {
+  const x = -0.33 + i * 0.22;
+  const m = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.012, 0.04), new THREE.MeshStandardMaterial({ color: 0x14324f, emissive: 0x2899f5, emissiveIntensity: 0.25 }));
+  m.position.set(x, 0.006, -D / 2 - 0.04); m.userData.action = action; catalog.add(m); pickables.push(m); toolBtns[action] = m;
+  const l = makeFlatLabel(text, 0.021, { bg: null, size: 40 }); l.position.set(x, 0.0125, -D / 2 - 0.04); catalog.add(l);
+});
+T = map;
+
 const selRing = new THREE.Mesh(new THREE.RingGeometry(0.036, 0.043, 48), new THREE.MeshBasicMaterial({ color: 0x2899f5, transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
 selRing.rotation.x = -Math.PI / 2; selRing.visible = false; board.add(selRing);
 
@@ -698,14 +915,23 @@ function select(rec){
 drawSummary(); drawDetail(null);
 /* alternar mapa / catálogo */
 const catBtn = document.getElementById('cat');
-function showCatalog(on){
+const PAGE_HINT = { res: 'Catálogo · Recursos: cada pieza representa un tipo de recurso de Azure. Toca una para ver qué es.', zon: 'Catálogo · Zonas: los barrios de la ciudad, de menos a más confianza. Toca una para ver qué contiene.', via: 'Catálogo · Vías y controles: cómo viaja el tráfico y qué pasa cuando falta un control (coches rojos = sin filtrar).' };
+let catPage = 'res';
+function showCatalog(on, page){
+  if (page) catPage = page;
   map.visible = !on; catalog.visible = on; catBtn.textContent = on ? 'Volver al mapa de red' : 'Ver catálogo de modelos 3D';
+  catRes.visible = catPage === 'res'; catZon.visible = catPage === 'zon'; catVia.visible = catPage === 'via';
+  document.getElementById('pages').style.display = on ? 'flex' : 'none';
+  document.querySelectorAll('#pages button').forEach(b => b.classList.toggle('on', b.dataset.p === catPage));
   selected = null; selRing.visible = false; drawDetail(null);
-  detailEl.innerHTML = on ? '<div class="hint">Catálogo: cada pieza representa un tipo de recurso. Toca una para ver qué es y cómo muestra su estado.</div>' : '<div class="hint">Selecciona un recurso o un cable del mapa.</div>';
+  detailEl.innerHTML = `<div class="hint">${on ? PAGE_HINT[catPage] : 'Selecciona un recurso o un cable del mapa.'}</div>`;
 }
 catBtn.addEventListener('click', () => showCatalog(!catalog.visible));
+document.querySelectorAll('#pages button').forEach(b => b.addEventListener('click', () => showCatalog(true, b.dataset.p)));
 
-if (location.hash === '#catalogo') showCatalog(true);
+if (location.hash === '#catalogo') showCatalog(true, 'res');
+if (location.hash === '#zonas') showCatalog(true, 'zon');
+if (location.hash === '#vias') showCatalog(true, 'via');
 { const h = location.hash.slice(1); const r = byId[h] || (h.startsWith('l') ? linkRecs[+h.slice(1)] : null); if (r) select(r); }
 
 /* ===================== interacción escritorio ===================== */
@@ -812,6 +1038,11 @@ function doAction(a){
       for (const r of nodeRecs) for (const m of r.shells) m.color.copy(scheme === 'tipo' ? m.userData.typeCol : m.userData.neutral);
       setMsg(scheme === 'tipo' ? 'Colores por tipo: cada clase de recurso tiene su color; el estado se ve en el aro del suelo, la esfera y las piezas de acento.' : 'Colores por estado: cuerpos en gris; solo destacan los colores de estado.');
       break;
+    case 'catalog': showCatalog(!catalog.visible, 'res'); break;
+    case 'page-map': showCatalog(false); break;
+    case 'page-res': showCatalog(true, 'res'); break;
+    case 'page-zon': showCatalog(true, 'zon'); break;
+    case 'page-via': showCatalog(true, 'via'); break;
     case 'reset': resetLayout(); setMsg('Maqueta restablecida a la disposición original.'); break;
   }
 }
@@ -1000,6 +1231,7 @@ renderer.setAnimationLoop((t, frame) => {
   }
   for (const l of linkRecs) for (const p of l.pulses) p.m.position.copy(l.curve.getPoint((s * l.speed + p.off) % 1));
   scan.position.z = -D / 2 + ((s * 0.1) % 1) * D;
+  if (catalog.visible) for (const d of roadDots) d.m.position.set(d.x0 + ((s * d.speed + d.off) % 1) * (d.x1 - d.x0), d.y, d.z);
   if (selRing.visible) selRing.material.opacity = 0.55 + 0.4 * Math.sin(s * 3);
 
   const hv = new Set();
