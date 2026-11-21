@@ -73,7 +73,7 @@
 
 <div id="hud" class="card">
   <h1>Mapa de red holográfico · Defender for Cloud</h1>
-  <div class="sub">Prototipo v0.12 · <b>datos de ejemplo ficticios</b>. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
+  <div class="sub">Prototipo v0.13 · <b>datos de ejemplo ficticios</b>. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
   <button id="cat" style="width:100%;padding:9px;border-radius:14px;border:1px solid #2899f5;background:transparent;color:#6cb8f6;font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px">Ver catálogo de modelos 3D</button>
   <div id="pages" style="display:none;gap:6px;margin-bottom:8px"><button data-p="res">Recursos</button><button data-p="zon">Zonas</button><button data-p="via">Vías y controles</button></div>
   <button id="xr" disabled>Comprobando realidad mixta…</button>
@@ -436,35 +436,41 @@ function buildModel(type, hex){
     const m = new THREE.MeshStandardMaterial({ color: scheme === 'tipo' ? tc : c, emissive: col, emissiveIntensity: 0.035, roughness: 0.5, metalness: 0.35 });
     m.userData.neutral = new THREE.Color(c); m.userData.typeCol = tc; shells.push(m); return m; };
   const accent = () => { const m = new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.55, roughness: 0.3 }); accents.push(m); return m; };
+  const brushed = canvasTex('brushed', 96, 96, (x, w, hh) => { x.fillStyle = '#c6cace'; x.fillRect(0, 0, w, hh); for (let i = 0; i < hh; i += 2){ const a = (i * 73 % 37) / 37; x.fillStyle = `rgba(0,0,0,${0.03 + a * 0.05})`; x.fillRect(0, i, w, 1); x.fillStyle = 'rgba(255,255,255,0.05)'; x.fillRect(0, i + 1, w, 1); } });
+  const metalMat = (hexc, metalness = 0.7, rough = 0.38) => { const m = new THREE.MeshStandardMaterial({ color: hexc, map: brushed, metalness, roughness: rough, emissive: col, emissiveIntensity: 0.03 }); m.userData.neutral = new THREE.Color(hexc); m.userData.typeCol = new THREE.Color(hexc); shells.push(m); return m; };
   const add = (geo, mat, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); g.add(m); return m; };
   const B = (w, h, d) => new THREE.BoxGeometry(w, h, d), C = (rt, rb, h, s = 28) => new THREE.CylinderGeometry(rt, rb, h, s);
   let h = 0.04;
   switch (type){
-    case 'vm': { // monitor + torre
-      const sh = shell(), scr = new THREE.MeshBasicMaterial({ map: screenTex(hex) });
+    case 'vm': { // monitor + torre · gris metálico (tipo Mac/Asus)
+      const sh = metalMat(0xa6aab0), scr = new THREE.MeshBasicMaterial({ map: screenTex(hex) });
       add(B(0.05, 0.034, 0.004), [sh, sh, sh, sh, scr, sh], -0.008, 0.043, 0);
       add(B(0.006, 0.022, 0.004), sh, -0.008, 0.016, -0.002);
       add(B(0.024, 0.003, 0.016), sh, -0.008, 0.0015, -0.002);
-      add(B(0.017, 0.044, 0.036), shell(0x22364f), 0.03, 0.022, -0.002);
+      add(B(0.017, 0.044, 0.036), metalMat(0x8b9096), 0.03, 0.022, -0.002);
       add(new THREE.SphereGeometry(0.0022, 10, 8), accent(), 0.03, 0.036, 0.0165);
-      for (let i = 0; i < 3; i++) add(B(0.011, 0.0012, 0.001), shell(0x0f1d2c), 0.03, 0.012 + i * 0.004, 0.0165);
+      for (let i = 0; i < 3; i++) add(B(0.011, 0.0012, 0.001), new THREE.MeshStandardMaterial({ color: 0x33373b }), 0.03, 0.012 + i * 0.004, 0.0165);
       h = 0.06; break;
     }
-    case 'sqldb': { // cilindro clásico de base de datos con bandas
-      add(C(0.02, 0.02, 0.038), shell(), 0, 0.019, 0);
-      add(C(0.0202, 0.0202, 0.0015), accent(), 0, 0.0385, 0);
-      [0.013, 0.026].forEach(y => add(new THREE.TorusGeometry(0.0202, 0.0011, 8, 40), accent(), 0, y, 0, Math.PI / 2));
-      h = 0.04; break;
+    case 'sqldb': { // LA BASE: ancha y baja (metal oscuro)
+      const m = metalMat(0x41566e, 0.6, 0.45);
+      add(C(0.031, 0.033, 0.02), m, 0, 0.01, 0);
+      add(C(0.0312, 0.0312, 0.0015), accent(), 0, 0.02, 0);
+      [0.007, 0.015].forEach(y => add(new THREE.TorusGeometry(0.0312, 0.0012, 8, 48), accent(), 0, y, 0, Math.PI / 2));
+      h = 0.02; break;
     }
-    case 'sqlserver': { // pila de discos de base de datos
-      const a = accent();
-      [0.0075, 0.0235, 0.0395].forEach(y => { add(C(0.023, 0.023, 0.014), shell(), 0, y, 0); add(new THREE.TorusGeometry(0.0232, 0.0012, 8, 44), a, 0, y + 0.0072, 0, Math.PI / 2); });
-      h = 0.048; break;
+    case 'sqlserver': { // SERVIDOR: alto, fino, estilizado + baliza de señal
+      const m = metalMat(0xb4bdc7), a = accent();
+      [0.008, 0.022, 0.036, 0.05].forEach(y => { add(C(0.013, 0.0135, 0.012), m, 0, y, 0); add(new THREE.TorusGeometry(0.0138, 0.001, 8, 40), a, 0, y + 0.006, 0, Math.PI / 2); });
+      add(C(0.0016, 0.0016, 0.012, 8), m, 0, 0.062, 0);
+      add(new THREE.SphereGeometry(0.004, 16, 12), a, 0, 0.071, 0);
+      add(new THREE.TorusGeometry(0.009, 0.0008, 8, 32), a, 0, 0.071, 0, Math.PI / 2);
+      h = 0.078; break;
     }
-    case 'storage': { // archivador con cajones
-      add(B(0.05, 0.042, 0.036), shell(), 0, 0.021, 0);
-      const a = accent();
-      [0.008, 0.021, 0.034].forEach(y => { add(B(0.044, 0.0105, 0.0015), shell(0x34506f), 0, y, 0.0185); add(B(0.012, 0.0022, 0.0025), a, 0, y, 0.0205); });
+    case 'storage': { // archivador de metal cepillado
+      add(B(0.05, 0.042, 0.036), metalMat(0x8f949b), 0, 0.021, 0);
+      const a = accent(), drawer = metalMat(0x72777e, 0.75, 0.3);
+      [0.008, 0.021, 0.034].forEach(y => { add(B(0.044, 0.0105, 0.0015), drawer, 0, y, 0.0185); add(B(0.012, 0.0022, 0.0025), a, 0, y, 0.0205); });
       h = 0.044; break;
     }
     case 'keyvault': { // caja fuerte con rueda y manilla
@@ -533,11 +539,11 @@ function buildModel(type, hex){
       [-0.0038, 0.0038].forEach(x => add(B(0.0024, 0.009, 0.0016), a, x, 0.0225, 0));
       h = 0.027; break;
     }
-    case 'vmss': { // conjunto de escalado: varias torres en fila
-      add(B(0.064, 0.003, 0.03), shell(0x1b2b3f), 0, 0.0015, 0);
-      const a = accent();
-      [-0.02, 0, 0.02].forEach(x => { add(B(0.015, 0.042, 0.026), shell(), x, 0.024, 0); add(new THREE.SphereGeometry(0.002, 8, 6), a, x, 0.038, 0.0135); });
-      h = 0.046; break;
+    case 'vmss': { // rack de servidores (gris metal)
+      add(B(0.05, 0.062, 0.036), metalMat(0x6f747b, 0.6, 0.45), 0, 0.031, 0);
+      const a = accent(), blade = metalMat(0x9398a0);
+      for (let k = 0; k < 5; k++){ add(B(0.044, 0.008, 0.002), blade, 0, 0.01 + k * 0.011, 0.018); add(new THREE.SphereGeometry(0.0015, 8, 6), a, -0.018, 0.01 + k * 0.011, 0.0195); }
+      h = 0.062; break;
     }
     case 'aks': { // timón (Kubernetes) con contenedores
       const sh = shell(), a = accent();
