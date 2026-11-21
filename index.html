@@ -73,7 +73,7 @@
 
 <div id="hud" class="card">
   <h1>Mapa de red holográfico · Defender for Cloud</h1>
-  <div class="sub">Prototipo v0.14 · <b>datos de ejemplo ficticios</b>. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
+  <div class="sub">Prototipo v0.15 · <b>datos de ejemplo ficticios</b>. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
   <button id="cat" style="width:100%;padding:9px;border-radius:14px;border:1px solid #2899f5;background:transparent;color:#6cb8f6;font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px">Ver catálogo de modelos 3D</button>
   <div id="pages" style="display:none;gap:6px;margin-bottom:8px"><button data-p="res">Recursos</button><button data-p="zon">Zonas</button><button data-p="via">Vías y controles</button></div>
   <button id="xr" disabled>Comprobando realidad mixta…</button>
@@ -454,10 +454,11 @@ function buildModel(type, hex){
     }
     case 'sqldb': { // LA BASE: ancha y baja (metal oscuro)
       const m = metalMat(0x41566e, 0.6, 0.45);
-      add(C(0.031, 0.033, 0.032), m, 0, 0.016, 0);
-      add(C(0.0312, 0.0312, 0.0015), accent(), 0, 0.032, 0);
-      [0.009, 0.019, 0.029].forEach(y => add(new THREE.TorusGeometry(0.0312, 0.0012, 8, 48), accent(), 0, y, 0, Math.PI / 2));
-      h = 0.032; break;
+      add(C(0.031, 0.033, 0.04), m, 0, 0.02, 0);
+      add(C(0.0318, 0.0318, 0.0024), accent(), 0, 0.0406, 0);
+      [0.011, 0.024].forEach(y => add(new THREE.TorusGeometry(0.0312, 0.0012, 8, 48), accent(), 0, y, 0, Math.PI / 2));
+      add(new THREE.TorusGeometry(0.0314, 0.0016, 8, 48), accent(), 0, 0.036, 0, Math.PI / 2);
+      h = 0.041; break;
     }
     case 'sqlserver': { // SERVIDOR: alto, fino, estilizado + baliza de señal
       const m = metalMat(0xb4bdc7), a = accent();
