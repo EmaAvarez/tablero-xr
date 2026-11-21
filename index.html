@@ -73,7 +73,7 @@
 
 <div id="hud" class="card">
   <h1>Mapa de red holográfico · Defender for Cloud</h1>
-  <div class="sub">Prototipo v0.18 · <b>datos de ejemplo ficticios</b>. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
+  <div class="sub">Prototipo v0.19 · <b>datos de ejemplo ficticios</b>. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
   <button id="cat" style="width:100%;padding:9px;border-radius:14px;border:1px solid #2899f5;background:transparent;color:#6cb8f6;font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px">Ver catálogo de modelos 3D</button>
   <div id="pages" style="display:none;gap:6px;margin-bottom:8px"><button data-p="res">Recursos</button><button data-p="zon">Zonas</button><button data-p="via">Vías y controles</button></div>
   <button id="xr" disabled>Comprobando realidad mixta…</button>
@@ -317,7 +317,8 @@ function flatPlate(x0, x1, z0, z1, y, color, opacity, edgeColor, dashed){
   const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat); if (dashed) l.computeLineDistances(); T.add(l);
 }
 function placeFlatLabel(text, x0, z, height, opts){
-  const l = makeFlatLabel(text, height, opts); l.position.set(x0 + l.geometry.parameters.width / 2, 0.004, z); T.add(l); return l;
+  const l = makeFlatLabel(text, height, opts); l.rotation.x = -0.62;
+  l.position.set(x0 + l.geometry.parameters.width / 2, 0.02, z); T.add(l); return l;
 }
 
 /* grupos: mapa y catálogo (se alternan) */
@@ -377,6 +378,15 @@ const windowsTex = () => canvasTex('bld', 128, 192, (x, w, h) => {
 const textTex = (txt, fg, bg) => canvasTex('t' + txt + fg + bg, 128, 80, (x, w, h) => {
   if (bg){ x.fillStyle = bg; rr(x, 0, 0, w, h, 16); x.fill(); }
   x.fillStyle = fg; x.font = '800 54px "Segoe UI", Arial'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(txt, w / 2, h / 2 + 3);
+});
+/* textura de piedra compartida (muro DMZ, torre Bastion) */
+const stoneTex = canvasTex('stone', 160, 160, (x, w, hh) => {
+  x.fillStyle = '#d9d2c0'; x.fillRect(0, 0, w, hh);
+  const bh = 20;
+  for (let r = 0; r * bh < hh; r++){ const off = (r % 2) * 26; for (let c = -1; c * 52 < w; c++){ const bx = c * 52 + off, by = r * bh; x.fillStyle = ['#e7e1d0', '#d2cab6', '#ded7c5', '#cdc4af'][(r * 3 + c * 5 + 8) % 4]; x.fillRect(bx + 1, by + 1, 50, bh - 2); } }
+  x.strokeStyle = '#b3a890'; x.lineWidth = 2;
+  for (let r = 0; r * bh <= hh; r++){ x.beginPath(); x.moveTo(0, r * bh); x.lineTo(w, r * bh); x.stroke(); }
+  for (let r = 0; r * bh < hh; r++){ const off = (r % 2) * 26; for (let c = 0; c * 52 < w + 52; c++){ const bx = c * 52 + off; x.beginPath(); x.moveTo(bx, r * bh); x.lineTo(bx, (r + 1) * bh); x.stroke(); } }
 });
 
 /* paleta inspirada en Azure / Microsoft Fluent */
@@ -801,17 +811,55 @@ ZONE_DEFS.forEach(([name, metaphor, desc, color, kind], i) => {
   plate.position.y = kind === 'hub' ? 0.006 : 0.003; g.add(plate);
   const edgeCol = { dmz: 0xd13438, hub: 0x2899f5, spoke: 0x2899f5, data: 0x50e6ff, mgmt: 0x8a8886, ident: 0x0078d4, onprem: 0x8a8886, paas: 0x8661c5, internet: 0x605e5c }[kind];
   const pe = new THREE.LineSegments(new THREE.EdgesGeometry(plate.geometry), new THREE.LineBasicMaterial({ color: edgeCol })); pe.position.copy(plate.position); g.add(pe);
-  const deco = new THREE.Group(); deco.position.set(0.082, 0, -0.01); deco.scale.setScalar(1.3); g.add(deco);
-  const m = (geo, c, x, y, z) => { const o = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: c, roughness: 0.6 })); o.position.set(x, y, z); deco.add(o); return o; };
-  if (kind === 'internet'){ [[-0.014, 0], [0, 0.007], [0.014, 0]].forEach(([x, y]) => m(new THREE.SphereGeometry(0.012, 16, 12), 0xd6d6d6, x, 0.03 + y, 0)); }
-  if (kind === 'dmz'){ m(new THREE.BoxGeometry(0.11, 0.028, 0.012), 0x8a8886, 0, 0.017, -0.02); m(new THREE.BoxGeometry(0.022, 0.03, 0.014), 0x11100f, 0, 0.016, -0.019); for (let k = -2; k <= 2; k++) m(new THREE.BoxGeometry(0.012, 0.008, 0.012), 0x8a8886, k * 0.024, 0.035, -0.02); }
-  if (kind === 'hub'){ m(new THREE.CylinderGeometry(0.02, 0.02, 0.004, 24), 0x2899f5, 0, 0.014, 0); }
-  if (kind === 'spoke'){ const sp = m(new THREE.BoxGeometry(0.1, 0.004, 0.06), 0x123d66, 0, 0.008, 0); }
-  if (kind === 'data'){ m(new THREE.BoxGeometry(0.012, 0.01, 0.006), 0x50e6ff, 0, 0.012, 0); const sk = new THREE.Mesh(new THREE.TorusGeometry(0.004, 0.0012, 8, 16, Math.PI), new THREE.MeshStandardMaterial({ color: 0x50e6ff })); sk.position.set(0, 0.017, 0); deco.add(sk); const inner = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w - 0.02, 0.006, d - 0.02)), new THREE.LineBasicMaterial({ color: 0x50e6ff })); inner.position.set(-0.075, 0.004, 0.01); deco.add(inner); }
-  if (kind === 'mgmt'){ m(new THREE.CylinderGeometry(0.0015, 0.0015, 0.04, 8), 0xa19f9d, 0, 0.026, 0); m(new THREE.SphereGeometry(0.004, 10, 8), 0x2899f5, 0, 0.047, 0); }
-  if (kind === 'ident'){ m(new THREE.CylinderGeometry(0.016, 0.018, 0.008, 6), 0x3b3a39, 0, 0.01, 0); m(new THREE.SphereGeometry(0.007, 14, 10), 0x0078d4, 0, 0.03, 0); m(new THREE.CylinderGeometry(0.004, 0.01, 0.014, 16), 0x0078d4, 0, 0.019, 0); }
-  if (kind === 'onprem'){ [[-0.02, 0.03], [0, 0.045], [0.02, 0.025]].forEach(([x, hh]) => m(new THREE.BoxGeometry(0.016, hh, 0.016), 0x8a8886, x, hh / 2 + 0.006, 0)); }
-  if (kind === 'paas'){ m(new THREE.BoxGeometry(0.06, 0.016, 0.03), 0x8661c5, 0, 0.014, 0); }
+  const deco = new THREE.Group(); deco.position.set(0.086, 0, -0.005); g.add(deco);
+  const m = (geo, c, x, y, z, rough = 0.6) => { const o = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: c, roughness: rough })); o.position.set(x, y, z); deco.add(o); return o; };
+  const mm = (geo, mat, x, y, z) => { const o = new THREE.Mesh(geo, mat); o.position.set(x, y, z); deco.add(o); return o; };
+  if (kind === 'internet'){ // nube real, como la del recurso Internet
+    const cm = new THREE.MeshStandardMaterial({ color: 0xd6ecff, roughness: 0.8 });
+    [[-0.026, 0, 0, 0.019], [0, 0.011, 0, 0.026], [0.028, 0, 0, 0.019], [-0.013, -0.006, 0.011, 0.016], [0.015, -0.006, 0.011, 0.016], [0, -0.004, -0.011, 0.019]]
+      .forEach(([x, y, z, r]) => mm(new THREE.SphereGeometry(r, 18, 12), cm, x, 0.032 + y, z));
+  }
+  if (kind === 'dmz'){ // muralla de piedra con almenas y puerta
+    const sm = new THREE.MeshStandardMaterial({ color: 0xefe9d8, map: stoneTex, roughness: 0.95, metalness: 0.02 });
+    mm(new THREE.BoxGeometry(0.12, 0.042, 0.018), sm, 0, 0.025, -0.01);
+    for (let k = -2; k <= 2; k++) mm(new THREE.BoxGeometry(0.018, 0.014, 0.018), sm, k * 0.026, 0.053, -0.01);
+    m(new THREE.BoxGeometry(0.024, 0.03, 0.02), 0x241a16, 0, 0.019, -0.008, 0.8);
+  }
+  if (kind === 'hub'){ // plaza con fuente y caminos
+    const pm = new THREE.MeshStandardMaterial({ color: 0x2d4a6b, roughness: 0.6 });
+    const wm = new THREE.MeshStandardMaterial({ color: 0x2899f5, emissive: 0x2899f5, emissiveIntensity: 0.3, roughness: 0.4 });
+    for (let a = 0; a < 4; a++){ const an = a * Math.PI / 2 + 0.4; const path = mm(new THREE.BoxGeometry(0.036, 0.002, 0.007), pm, Math.cos(an) * 0.03, 0.004, Math.sin(an) * 0.03); path.rotation.y = -an; }
+    mm(new THREE.CylinderGeometry(0.03, 0.032, 0.008, 24), pm, 0, 0.008, 0);
+    mm(new THREE.CylinderGeometry(0.024, 0.024, 0.004, 24), wm, 0, 0.013, 0);
+    mm(new THREE.CylinderGeometry(0.004, 0.005, 0.022, 12), pm, 0, 0.023, 0);
+    mm(new THREE.CylinderGeometry(0.012, 0.012, 0.003, 16), wm, 0, 0.034, 0);
+  }
+  if (kind === 'spoke'){ // barrio con edificios
+    m(new THREE.BoxGeometry(0.11, 0.004, 0.07), 0x123d66, 0, 0.006, 0);
+    [[-0.03, 0.022], [-0.008, 0.032], [0.016, 0.024], [0.036, 0.016]].forEach(([x, hh]) => m(new THREE.BoxGeometry(0.016, hh, 0.016), 0x1b4e7a, x, hh / 2 + 0.008, 0));
+  }
+  if (kind === 'data'){ // cámara acorazada con candado grande
+    const vm = new THREE.MeshStandardMaterial({ color: 0x123a52, roughness: 0.5, metalness: 0.3 });
+    mm(new THREE.BoxGeometry(0.05, 0.04, 0.032), vm, 0, 0.026, -0.006);
+    const door = mm(new THREE.CylinderGeometry(0.014, 0.014, 0.004, 24), new THREE.MeshStandardMaterial({ color: 0x50e6ff, emissive: 0x50e6ff, emissiveIntensity: 0.25, metalness: 0.6, roughness: 0.3 }), 0, 0.026, 0.01); door.rotation.x = Math.PI / 2;
+    mm(new THREE.BoxGeometry(0.02, 0.018, 0.009), new THREE.MeshStandardMaterial({ color: 0xffd34d, emissive: 0x5a4500, emissiveIntensity: 0.25, metalness: 0.6, roughness: 0.3 }), 0, 0.06, 0);
+    const shk = mm(new THREE.TorusGeometry(0.008, 0.0024, 10, 20, Math.PI), new THREE.MeshStandardMaterial({ color: 0xd9dadb, metalness: 0.8, roughness: 0.3 }), 0, 0.069, 0);
+  }
+  if (kind === 'mgmt'){ // comisaría con antena
+    m(new THREE.BoxGeometry(0.032, 0.026, 0.026), 0x4a4845, 0, 0.019, 0);
+    m(new THREE.CylinderGeometry(0.0016, 0.0016, 0.03, 8), 0xa19f9d, 0, 0.047, 0);
+    mm(new THREE.SphereGeometry(0.005, 12, 10), new THREE.MeshStandardMaterial({ color: 0x2899f5, emissive: 0x2899f5, emissiveIntensity: 0.6 }), 0, 0.064, 0);
+  }
+  if (kind === 'ident'){ // oficina de pasaportes (busto)
+    m(new THREE.CylinderGeometry(0.022, 0.026, 0.012, 6), 0x2a3a52, 0, 0.012, 0);
+    m(new THREE.CylinderGeometry(0.007, 0.015, 0.022, 16), 0x0078d4, 0, 0.027, 0);
+    mm(new THREE.SphereGeometry(0.011, 16, 12), new THREE.MeshStandardMaterial({ color: 0x0078d4, emissive: 0x002a4a, emissiveIntensity: 0.2 }), 0, 0.042, 0);
+  }
+  if (kind === 'onprem'){ [[-0.026, 0.04], [0, 0.058], [0.026, 0.032]].forEach(([x, hh]) => m(new THREE.BoxGeometry(0.02, hh, 0.02), 0x8a8886, x, hh / 2 + 0.006, 0)); }
+  if (kind === 'paas'){ // centro comercial abierto
+    m(new THREE.BoxGeometry(0.07, 0.024, 0.042), 0x8661c5, 0, 0.02, 0, 0.5);
+    mm(new THREE.BoxGeometry(0.062, 0.018, 0.0008), new THREE.MeshStandardMaterial({ color: 0xd9c9ff, transparent: true, opacity: 0.3 }), 0, 0.02, 0.0215);
+  }
   flatText(g, name, -w / 2 + 0.012, d / 2 - 0.05, 0.026, '#ffffff', true, 700, 0.014);
   flatText(g, metaphor, -w / 2 + 0.012, d / 2 - 0.02, 0.02, '#e1dfdd', true, 400, 0.014);
   infoRec(g, name, 'Zona · ' + metaphor, desc);
