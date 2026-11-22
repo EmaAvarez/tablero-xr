@@ -73,7 +73,7 @@
 
 <div id="hud" class="card">
   <h1>Mapa de red holográfico · Defender for Cloud</h1>
-  <div class="sub">Prototipo v0.29 · <b>datos de ejemplo ficticios</b>. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
+  <div class="sub">Prototipo v0.30 · <b>datos de ejemplo ficticios</b>. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
   <button id="cat" style="width:100%;padding:9px;border-radius:14px;border:1px solid #2899f5;background:transparent;color:#6cb8f6;font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px">Ver catálogo de modelos 3D</button>
   <div id="pages" style="display:none;gap:6px;margin-bottom:8px"><button data-p="res">Recursos</button><button data-p="zon">Zonas</button><button data-p="via">Vías y controles</button></div>
   <button id="xr" disabled>Comprobando realidad mixta…</button>
@@ -222,7 +222,8 @@ const NODES = [
   { id: 'db1', name: 'sqldb-clientes', type: 'sqldb', typeLabel: 'Base de datos SQL', group: 'rg-produccion', region: 'West Europe', pos: [0.49, 0.18], checks: [
     { t: 'Cifrado de datos transparente (TDE) habilitado', s: 'Baja', d: 'DP', ok: true },
     { t: 'Hallazgos de vulnerabilidad de la base de datos resueltos', s: 'Alta', d: 'PV', ok: false, fix: 'Revisar reglas fallidas: permisos excesivos y cuentas huérfanas.' }
-  ]}
+  ]},
+  { id: 'vmnew', name: 'vm-nueva-01', type: 'vm', typeLabel: 'Máquina virtual · aún sin evaluar por Defender', group: 'rg-hub', region: 'West Europe', pos: [-0.345, 0.0], checks: [] }
 ];
 
 /* cables: conexiones entre elementos (ok = correcta; si no, severidad) */
@@ -695,6 +696,13 @@ function addNode(item){
   const topY = h + 0.02; orb.position.y = topY; grp.add(orb);
   const orbRing = new THREE.Mesh(new THREE.TorusGeometry(0.014, 0.0016, 10, 32), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.85 }));
   orbRing.rotation.x = -Math.PI / 2; orbRing.position.y = topY; grp.add(orbRing);
+  /* "sin evaluar": recurso propio sin controles de Defender -> orbe blanco cruzado por una franja roja diagonal */
+  if (!item.statusOverride && !item.checks.length){
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.0045, 0.0045), new THREE.MeshBasicMaterial({ color: 0xd13438 }));
+    stripe.position.y = topY; stripe.position.z = 0.0092; stripe.rotation.z = Math.PI / 4; grp.add(stripe);
+    const stripe2 = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.0045, 0.0045), new THREE.MeshBasicMaterial({ color: 0xd13438 }));
+    stripe2.position.y = topY; stripe2.position.z = -0.0092; stripe2.rotation.z = Math.PI / 4; grp.add(stripe2);
+  }
   const n = fails(item);
   const txt = item.labelText || (!item.checks.length ? item.name : n ? `${item.name}  ✖ ${n}` : `${item.name}  ✔`);
   const label = makeLabel(txt, 0.015, { border: statusHex }); label.position.y = topY + 0.021; grp.add(label);
@@ -754,7 +762,7 @@ for (const l of linkRecs) for (const id of [l.L.from, l.L.to]) if (id) (nodeLink
 for (const r of nodeRecs){ r.s = 1; r.anchorY0 = r.anchorY; }
 
 /* barra de herramientas 3D (útil en RM; en escritorio hay otra en HTML) */
-const TOOLS = [['move', '⟲ Colocar'], ['edit', '✋ Editar'], ['pminus', 'Pieza −'], ['pplus', 'Pieza +'], ['mminus', 'Maqueta −'], ['mplus', 'Maqueta +'], ['reset', '↺ Restablecer'], ['colors', '🎨 Colores'], ['catalog', '📘 Catálogo'], ['world', '🌐 Mundo'], ['panels', '🗔 Paneles']];
+const TOOLS = [['move', '⟲ Colocar'], ['edit', '✋ Editar'], ['pminus', 'Pieza −'], ['pplus', 'Pieza +'], ['mminus', 'Maqueta −'], ['mplus', 'Maqueta +'], ['reset', '↺ Restablecer'], ['colors', '🎨 Colores'], ['catalog', '📘 Catálogo'], ['world', '🌐 Mundo'], ['worldfloat', '🛰️ Globo aparte'], ['panels', '🗔 Paneles']];
 const toolBtns = {};
 const toolbar = new THREE.Group(); board.add(toolbar);
 TOOLS.forEach(([action, text], i) => {
@@ -1244,6 +1252,7 @@ function doAction(a){
       break;
     case 'catalog': showCatalog(!catalog.visible, 'res'); break;
     case 'world': showWorld(!worldGroup.visible); break;
+    case 'worldfloat': floatGlobe(!globeFloat); break;
     case 'page-map': showCatalog(false); break;
     case 'page-res': showCatalog(true, 'res'); break;
     case 'page-zon': showCatalog(true, 'zon'); break;
@@ -1426,7 +1435,7 @@ function onSqueeze(ctrl, down){
   }
   if (placing) return;
   const wp = ctrlPos(ctrl, new THREE.Vector3());
-  if (worldGroup.visible){ const hg = rayFrom(ctrl); if (hg && hg.object.userData.globe){ ctrl.userData.sq = { mode: 'globe', lastX: wp.x }; worldAuto = false; worldLast = performance.now(); return; } }
+  if (worldGroup.visible){ const hg = rayFrom(ctrl); if (hg && hg.object.userData.globe){ if (globeFloat){ ctrl.userData.sq = { mode: 'floatglobe', start: wp.clone(), p0: worldGroup.position.clone() }; } else { ctrl.userData.sq = { mode: 'globe', lastX: wp.x }; worldAuto = false; worldLast = performance.now(); } return; } }
   if (other && other.userData.sq){
     const d0 = wp.distanceTo(ctrlPos(other, new THREE.Vector3()));
     if (other.userData.sq.mode === 'piece'){ two = { kind: 'piece', rec: other.userData.sq.rec, d0, s0: other.userData.sq.rec.s }; }
@@ -1462,6 +1471,7 @@ function updateSqueeze(){
     const wp = ctrlPos(ctrl, new THREE.Vector3());
     if (sq.mode === 'board'){ board.position.copy(sq.b0).add(wp.sub(sq.start)); }
     else if (sq.mode === 'globe'){ const dx = wp.x - sq.lastX; worldSpin.rotation.y += dx * 6; worldVel = dx * 6; sq.lastX = wp.x; worldAuto = false; worldLast = performance.now(); }
+    else if (sq.mode === 'floatglobe'){ worldGroup.position.copy(sq.p0).add(wp.sub(sq.start)); }
     else if (sq.mode === 'insp'){ inspector.position.copy(sq.p0).add(wp.sub(sq.start)); }
     else if (sq.mode === 'piece'){
       sq.rec.grp.rotation.y = sq.ry0 - (rollOf(ctrl) - sq.roll0);
@@ -1541,7 +1551,7 @@ const WORLD = {
 const WR = 0.24;
 const worldGroup = new THREE.Group(); worldGroup.visible = false; worldGroup.position.set(0, 0.33, 0); board.add(worldGroup);
 const worldSpin = new THREE.Group(); worldGroup.add(worldSpin); worldSpin.rotation.y = -1.15;
-let worldAuto = true, worldLast = 0, worldVel = 0.0012;
+let worldAuto = true, worldLast = 0, worldVel = 0.0012, globeFloat = false;
 
 function llToXYZ(lat, lon, r){ const la = lat * Math.PI / 180, lo = lon * Math.PI / 180; return new THREE.Vector3(r * Math.cos(la) * Math.cos(lo), r * Math.sin(la), -r * Math.cos(la) * Math.sin(lo)); }
 function worstLoc(l){ return l.status.Alta ? COL.Alta : l.status.Media ? COL.Media : l.status.Baja ? COL.Baja : COL.ok; }
@@ -1630,7 +1640,26 @@ function selectLoc(rec){
   detailEl.innerHTML = h + rows.map(([n, v, c]) => `<div class="chk"><span class="dot" style="background:${c}"></span> <b>${n}</b> · ${v}</div>`).join('') + '<div class="hint" style="margin-top:8px">Datos de demo (fundamentos). Con el tenant conectado, cada ubicación mostrará sus recursos reales.</div>';
 }
 
+/* Globo desacoplable: convive con el tablero, flota a un costado, sigue girando, se agarra y se mueve. */
+function floatGlobe(on){
+  if (on && worldGroup.visible && !globeFloat) showWorld(false);   // salir de la vista completa si estaba
+  globeFloat = on;
+  if (on){
+    if (worldGroup.parent !== scene) scene.add(worldGroup);
+    worldGroup.visible = true;
+    const p = board.getWorldPosition(new THREE.Vector3());
+    worldGroup.position.set(p.x + 0.85, p.y + 0.72, p.z - 0.05);
+    worldGroup.scale.setScalar(0.6);
+    worldAuto = true; worldLast = 0;
+    setMsg('Globo flotante: queda girando a un costado del tablero. Agárralo con el grip para moverlo; vuelve a pulsar “Globo aparte” para recogerlo.');
+  } else {
+    worldGroup.visible = false;
+    if (worldGroup.parent !== board) board.add(worldGroup);
+    worldGroup.position.set(0, 0.33, 0); worldGroup.scale.setScalar(1);
+  }
+}
 function showWorld(on){
+  if (globeFloat){ globeFloat = false; if (worldGroup.parent !== board) board.add(worldGroup); worldGroup.position.set(0, 0.33, 0); worldGroup.scale.setScalar(1); }
   worldGroup.visible = on; map.visible = !on; catalog.visible = false;
   base.visible = bEdges.visible = grid.visible = scan.visible = !on;
   summary.mesh.visible = detail.mesh.visible = !on;
