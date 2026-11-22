@@ -73,7 +73,7 @@
 
 <div id="hud" class="card">
   <h1>Mapa de red holográfico · Defender for Cloud</h1>
-  <div class="sub">Prototipo v0.33 · <b>datos de ejemplo ficticios</b>. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
+  <div class="sub">Prototipo v0.34 · <b>datos de ejemplo ficticios</b>. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
   <button id="cat" style="width:100%;padding:9px;border-radius:14px;border:1px solid #2899f5;background:transparent;color:#6cb8f6;font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px">Ver catálogo de modelos 3D</button>
   <div id="pages" style="display:none;gap:6px;margin-bottom:8px"><button data-p="res">Recursos</button><button data-p="zon">Zonas</button><button data-p="via">Vías y controles</button></div>
   <button id="xr" disabled>Comprobando realidad mixta…</button>
@@ -455,6 +455,22 @@ function openPalette(){
     catch (e) { setMsg('No se pudo guardar la paleta en este navegador.'); }
   };
 }
+/* Aplica una paleta rápida en vivo (recolorea estados: orbe, aros, cables). Para usar en XR, donde no se puede abrir el panel HTML. */
+let paletteIdx = 0;
+function applyPreset(name){
+  const pr = PRESETS[name]; if (!pr) return;
+  Object.assign(COL, pr.col);
+  for (const r of nodeRecs){
+    const hex = r.item.statusOverride || statusColor(r.item), c = new THREE.Color(hex);
+    if (r.orb) r.orb.material.color.copy(c);
+    if (r.orbRing) r.orbRing.material.color.copy(c);
+    if (r.glow) r.glow.material.color.copy(c);
+  }
+  for (const l of linkRecs){ const hex = l.ok ? COL.ok : COL[l.L.s]; if (l.tubeMat) l.tubeMat.color.set(hex); for (const p of l.pulses) p.m.material.color.set(hex); }
+  renderLegend();
+  try { localStorage.setItem(PKEY, JSON.stringify({ col: { ...pr.col }, type: {} })); } catch (e) {}
+  setMsg('Paleta: ' + name + (name === 'Daltonismo' ? ' · colores seguros para daltonismo.' : '.'));
+}
 renderLegend();
 let scheme = 'tipo';
 try { scheme = localStorage.getItem('tablero-colores') || 'tipo'; } catch (e) {}
@@ -717,7 +733,7 @@ function addNode(item){
   const label = makeLabel(txt, 0.015, { border: statusHex }); label.position.y = topY + 0.021; grp.add(label);
   const pickBall = new THREE.Mesh(new THREE.SphereGeometry(0.034, 12, 8), new THREE.MeshBasicMaterial({ visible: false })); pickBall.position.y = h / 2; grp.add(pickBall);
   label.userData.aspect = label.scale.x / label.scale.y;
-  const rec = { kind: 'node', s: 1, item, grp, orb, label, h, shells, accents, baseY: topY, anchorY: Math.min(h * 0.5, 0.035), phase: Math.random() * 6.28, bad: n > 0, loc: NODE_LOC[item.id] || 'mx' };
+  const rec = { kind: 'node', s: 1, item, grp, orb, orbRing, glow, label, h, shells, accents, baseY: topY, anchorY: Math.min(h * 0.5, 0.035), phase: Math.random() * 6.28, bad: n > 0, loc: NODE_LOC[item.id] || 'mx' };
   grp.traverse(o => { if (o.isMesh && o !== glow){ o.userData.rec = rec; pickables.push(o); } });
   rec.anchorY0 = rec.anchorY; nodeRecs.push(rec); byId[item.id] = rec;
   return rec;
@@ -1254,10 +1270,7 @@ function doAction(a){
     case 'mminus': setBoardScale(boardScale / 1.15); break;
     case 'colors':
       if (!renderer.xr.isPresenting){ openPalette(); break; }
-      scheme = scheme === 'tipo' ? 'estado' : 'tipo';
-      try { localStorage.setItem('tablero-colores', scheme); } catch (e) {}
-      for (const r of nodeRecs) for (const m of r.shells) m.color.copy(scheme === 'tipo' ? m.userData.typeCol : m.userData.neutral);
-      setMsg(scheme === 'tipo' ? 'Colores por tipo: cada clase de recurso tiene su color; el estado se ve en el aro del suelo, la esfera y las piezas de acento.' : 'Colores por estado: cuerpos en gris; solo destacan los colores de estado.');
+      { const names = Object.keys(PRESETS); paletteIdx = (paletteIdx + 1) % names.length; applyPreset(names[paletteIdx]); }
       break;
     case 'catalog': showCatalog(!catalog.visible, 'res'); break;
     case 'world': if (renderer.xr.isPresenting) floatGlobe(!globeFloat); else showWorld(!worldGroup.visible); break;
@@ -1342,7 +1355,7 @@ function openInspector(rec){
   const close = new THREE.Mesh(roundedPanel(0.11, 0.032, 0.008, 0.009), new THREE.MeshStandardMaterial({ color: 0x0f2a47, emissive: 0x0078d4, emissiveIntensity: 0.5 }));
   close.position.set(0, -0.19, 0); close.userData.action = 'close-insp'; close.userData.insp = true; inspector.add(close); pickables.push(close);
   const cl = makeFlatLabel('✖ Cerrar', 0.02, { bg: null, size: 44, weight: 800, pad: 6 }); cl.rotation.x = 0; cl.position.set(0, -0.19, 0.0045); inspector.add(cl);
-  const hint = makeLabel('1 grip: mover · 2 grips: rotar/revolver · joystick ↑↓ tamaño · ← → girar modelo · Cerrar o Esc', 0.0125, { bg: null, color: '#c8c6c4', size: 36 }); hint.position.set(0, -0.26, 0); inspector.add(hint);
+  const hint = makeLabel('Grip: agarrar para mover y rotar con la mano · joystick ↑↓ tamaño · ← → girar modelo · Cerrar o Esc', 0.0125, { bg: null, color: '#c8c6c4', size: 36 }); hint.position.set(0, -0.26, 0); inspector.add(hint);
   /* delante de la cara */
   const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
   const cp = new THREE.Vector3(), cd = new THREE.Vector3(); cam.getWorldPosition(cp); cam.getWorldDirection(cd);
@@ -1458,7 +1471,7 @@ function onSqueeze(ctrl, down){
   }
   if (insp){
     const ic = inspector.getWorldPosition(new THREE.Vector3()); const hitI = rayFrom(ctrl);
-    if (ic.distanceTo(wp) < 0.3 || (hitI && hitI.object.userData.insp)){ ctrl.userData.sq = { mode: 'insp', start: wp.clone(), p0: inspector.position.clone() }; return; }
+    if (ic.distanceTo(wp) < 0.3 || (hitI && hitI.object.userData.insp)){ ctrl.userData.sq = { mode: 'insp', start: wp.clone(), p0: inspector.position.clone(), cq0: ctrl.getWorldQuaternion(new THREE.Quaternion()), q0: inspector.quaternion.clone() }; return; }
   }
   let rec = nearestNode(wp), ray = false;
   if (!rec){ const hit = rayFrom(ctrl); if (hit && hit.object.userData.rec && hit.object.userData.rec.kind === 'node'){ rec = hit.object.userData.rec; ray = true; } }
@@ -1496,7 +1509,11 @@ function updateSqueeze(){
     if (sq.mode === 'board'){ board.position.copy(sq.b0).add(wp.sub(sq.start)); }
     else if (sq.mode === 'globe'){ const dx = wp.x - sq.lastX; worldSpin.rotation.y += dx * 6; worldVel = dx * 6; sq.lastX = wp.x; worldAuto = false; worldLast = performance.now(); }
     else if (sq.mode === 'floatglobe'){ worldGroup.position.copy(sq.p0).add(wp.sub(sq.start)); }
-    else if (sq.mode === 'insp'){ inspector.position.copy(sq.p0).add(wp.sub(sq.start)); }
+    else if (sq.mode === 'insp'){
+      inspector.position.copy(sq.p0).add(wp.sub(sq.start));
+      const cq = ctrl.getWorldQuaternion(new THREE.Quaternion());
+      inspector.quaternion.copy(cq.multiply(sq.cq0.clone().invert())).multiply(sq.q0);
+    }
     else if (sq.mode === 'piece'){
       sq.rec.grp.rotation.y = sq.ry0 - (rollOf(ctrl) - sq.roll0);
       if (sq.ray){ tmpM.identity().extractRotation(ctrl.matrixWorld); raycaster.ray.origin.setFromMatrixPosition(ctrl.matrixWorld); raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tmpM); dragTo(raycaster.ray); }
