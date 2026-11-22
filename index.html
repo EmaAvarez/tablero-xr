@@ -73,7 +73,7 @@
 
 <div id="hud" class="card">
   <h1>Mapa de red holográfico · Defender for Cloud</h1>
-  <div class="sub">Prototipo v0.37 · <b>datos de ejemplo ficticios</b> · botón verde: tus 5 recursos del lab · botón azul: leer tu Azure EN VIVO con un token. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
+  <div class="sub">Prototipo v0.38 · <b>datos de ejemplo ficticios</b> · botón verde: tus 5 recursos del lab · botón azul: leer tu Azure EN VIVO con un token. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
   <button id="cat" style="width:100%;padding:9px;border-radius:14px;border:1px solid #2899f5;background:transparent;color:#6cb8f6;font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px">Ver catálogo de modelos 3D</button>
   <div id="pages" style="display:none;gap:6px;margin-bottom:8px"><button data-p="res">Recursos</button><button data-p="zon">Zonas</button><button data-p="via">Vías y controles</button></div>
   <button id="xr" disabled>Comprobando realidad mixta…</button>
@@ -285,7 +285,7 @@ if (LIVE){
     list.forEach((n, k) => {
       const r = Math.floor(k / cols), c = k % cols;
       const gx = cx + (c - (cols - 1) / 2) * stepX, gz = (r - (rows - 1) / 2) * stepZ;
-      LIVE_NODES.push({ id: 'L' + i + '_' + k, name: n.name, type: n.type, typeLabel: n.typeLabel, group: rg, region: n.loc, loc: '*', pos: [gx, gz], checks: n.checks || [] });
+      LIVE_NODES.push({ id: 'L' + i + '_' + k, name: n.name, type: n.type, typeLabel: n.typeLabel, group: rg, region: n.loc, loc: String(n.loc || 'unknown').toLowerCase(), pos: [gx, gz], checks: n.checks || [] });
     });
   });
 }
@@ -318,7 +318,8 @@ function sortChecks(list){ return [...list].sort((a, b) => (a.ok - b.ok) || ((SE
 function esc(s){ return String(s).replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch])); }
 function rr(ctx, x, y, w, h, r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
 function wrap(ctx, text, maxW){ const words = text.split(' '); const lines = []; let line = ''; for (const w of words){ const test = line ? line + ' ' + w : w; if (ctx.measureText(test).width > maxW && line){ lines.push(line); line = w; } else line = test; } if (line) lines.push(line); return lines; }
-function metaLine(it){ return [it.typeLabel, it.route, it.group, it.region].filter(Boolean).join(' · '); }
+function regPretty(r){ const k = String(r || '').toLowerCase(); return (typeof AZ_REGIONS !== 'undefined' && AZ_REGIONS[k]) ? AZ_REGIONS[k][0] : r; }
+function metaLine(it){ return [it.typeLabel, it.route, it.group, it.region ? regPretty(it.region) : null].filter(Boolean).join(' · '); }
 
 /* ===================== escena ===================== */
 const canvas = document.getElementById('c');
@@ -1696,13 +1697,41 @@ const WORLD = {
     { id: 'es', name: 'TCM España', lat: 40.4, lon: -3.7, funcs: 10, status: { Alta: 0, Media: 3, Baja: 0, ok: 7 } }
   ]
 };
+/* catálogo de regiones de Azure (lat/lon aproximada del datacenter) para el modo EN VIVO */
+const AZ_REGIONS = {
+  eastus: ['East US (Virginia)', 37.37, -79.82], eastus2: ['East US 2 (Virginia)', 36.85, -78.0],
+  westus: ['West US (California)', 37.78, -122.42], westus2: ['West US 2 (Washington)', 47.23, -119.85], westus3: ['West US 3 (Arizona)', 33.45, -112.07],
+  centralus: ['Central US (Iowa)', 41.59, -93.62], southcentralus: ['South Central US (Texas)', 29.42, -98.5], northcentralus: ['North Central US (Illinois)', 41.88, -87.63],
+  westeurope: ['West Europe (Países Bajos)', 52.37, 4.9], northeurope: ['North Europe (Irlanda)', 53.34, -6.26],
+  uksouth: ['UK South (Londres)', 51.5, -0.12], ukwest: ['UK West (Cardiff)', 51.48, -3.18],
+  francecentral: ['France Central (París)', 48.85, 2.35], germanywestcentral: ['Germany West Central (Fráncfort)', 50.11, 8.68],
+  switzerlandnorth: ['Switzerland North (Zúrich)', 47.37, 8.54], swedencentral: ['Sweden Central (Gävle)', 60.67, 17.14],
+  norwayeast: ['Norway East (Oslo)', 59.91, 10.75], polandcentral: ['Poland Central (Varsovia)', 52.23, 21.0],
+  italynorth: ['Italy North (Milán)', 45.46, 9.19], spaincentral: ['Spain Central (Madrid)', 40.42, -3.7],
+  eastasia: ['East Asia (Hong Kong)', 22.27, 114.19], southeastasia: ['Southeast Asia (Singapur)', 1.35, 103.82],
+  japaneast: ['Japan East (Tokio)', 35.68, 139.69], japanwest: ['Japan West (Osaka)', 34.69, 135.5],
+  australiaeast: ['Australia East (Sídney)', -33.86, 151.21], centralindia: ['Central India (Pune)', 18.52, 73.86],
+  brazilsouth: ['Brazil South (São Paulo)', -23.55, -46.63], canadacentral: ['Canada Central (Toronto)', 43.65, -79.38], canadaeast: ['Canada East (Quebec)', 46.81, -71.21],
+  uaenorth: ['UAE North (Dubái)', 25.2, 55.27], southafricanorth: ['South Africa North (Johannesburgo)', -26.2, 28.04], koreacentral: ['Korea Central (Seúl)', 37.57, 126.98]
+};
+if (LIVE){
+  const byReg = {};
+  for (const n of LIVE_NODES){ const id = String(n.region || 'unknown').toLowerCase(); (byReg[id] ||= []).push(n); }
+  WORLD.locs = Object.entries(byReg).map(([id, ns]) => {
+    const info = AZ_REGIONS[id] || [id, 0, 0];
+    const status = { Alta: 0, Media: 0, Baja: 0, ok: 0, none: 0 };
+    for (const n of ns){ if (!n.checks.length){ status.none++; continue; } const wsv = worstSev(n); if (wsv) status[wsv]++; else status.ok++; }
+    return { id, name: info[0], lat: info[1], lon: info[2], funcs: ns.length, status };
+  });
+  WORLD.hub = (WORLD.locs.slice().sort((a, b) => b.funcs - a.funcs)[0] || {}).id;
+}
 const WR = 0.24;
 const worldGroup = new THREE.Group(); worldGroup.visible = false; worldGroup.position.set(0, 0.33, 0); board.add(worldGroup);
 const worldSpin = new THREE.Group(); worldGroup.add(worldSpin); worldSpin.rotation.y = -1.15;
 let worldAuto = true, worldLast = 0, worldVel = 0.0012, globeFloat = false;
 
 function llToXYZ(lat, lon, r){ const la = lat * Math.PI / 180, lo = lon * Math.PI / 180; return new THREE.Vector3(r * Math.cos(la) * Math.cos(lo), r * Math.sin(la), -r * Math.cos(la) * Math.sin(lo)); }
-function worstLoc(l){ return l.status.Alta ? COL.Alta : l.status.Media ? COL.Media : l.status.Baja ? COL.Baja : COL.ok; }
+function worstLoc(l){ return l.status.Alta ? COL.Alta : l.status.Media ? COL.Media : l.status.Baja ? COL.Baja : (l.status.ok ? COL.ok : COL.ext); }
 function glowTex(){ return canvasTex('glow', 128, 128, (x, w, h) => { const g = x.createRadialGradient(w/2, h/2, 0, w/2, h/2, w/2); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.25, 'rgba(255,255,255,0.7)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, w, h); }); }
 
 /* globo: esfera tenue + rejilla lat/long */
@@ -1765,7 +1794,7 @@ addCloseButton(locPanel.mesh, 0.3, 0.3 * 420 / 560, 'close-loc');
 function drawLocPanel(loc){
   const { ctx, c } = locPanel; const w = c.width, h = c.height; const hex = worstLoc(loc);
   panelFrame(ctx, w, h, loc.name);
-  ctx.fillStyle = '#c8c6c4'; ctx.font = '400 24px "Segoe UI", Arial'; ctx.fillText(`${loc.funcs} funciones · estado general`, 40, 104);
+  ctx.fillStyle = '#c8c6c4'; ctx.font = '400 24px "Segoe UI", Arial'; ctx.fillText(LIVE ? `${loc.funcs} recursos · ${loc.status.none || 0} sin evaluar` : `${loc.funcs} funciones · estado general`, 40, 104);
   ctx.beginPath(); ctx.arc(70, 150, 12, 0, 7); ctx.fillStyle = hex; ctx.fill();
   const tot = loc.status.Alta + loc.status.Media + loc.status.Baja + loc.status.ok;
   const rows = [['Fallo alta', loc.status.Alta, COL.Alta], ['Fallo media', loc.status.Media, COL.Media], ['Fallo baja', loc.status.Baja, COL.Baja], ['Correcto', loc.status.ok, COL.ok]];
@@ -1777,7 +1806,7 @@ function drawLocPanel(loc){
     ctx.fillStyle = '#fff'; ctx.textAlign = 'right'; ctx.fillText(String(v), w - 40, y + 24); ctx.textAlign = 'left';
     y += 44;
   });
-  ctx.fillStyle = '#ffb900'; ctx.font = '600 20px "Segoe UI", Arial'; ctx.fillText('DEMO · fundamentos (sin conectar)', 40, h - 24);
+  ctx.fillStyle = LIVE ? '#8fd14f' : '#ffb900'; ctx.font = '600 20px "Segoe UI", Arial'; ctx.fillText(LIVE ? 'DATOS REALES EN VIVO · región de Azure' : 'DEMO · fundamentos (sin conectar)', 40, h - 24);
   locPanel.tex.needsUpdate = true;
 }
 /* Filtra el tablero por ubicación seleccionada en el globo. Sin selección = todos los recursos. */
@@ -1803,7 +1832,7 @@ function selectLoc(rec){
   locPanel.mesh.position.copy(rec.nrm.clone().multiplyScalar(WR + 0.04)).add(new THREE.Vector3(0.11, 0.02, 0));
   locPanel.mesh.scale.setScalar(1.4);
   locPanel.mesh.visible = true;
-  const l = rec.item, h = `<h2>${esc(l.name)}</h2><div class="meta">${l.funcs} funciones · estado general</div>`;
+  const l = rec.item, h = `<h2>${esc(l.name)}</h2><div class="meta">${l.funcs} ${LIVE ? 'recursos' : 'funciones'} · estado general</div>`;
   const rows = [['Fallo alta', l.status.Alta, COL.Alta], ['Fallo media', l.status.Media, COL.Media], ['Fallo baja', l.status.Baja, COL.Baja], ['Correcto', l.status.ok, COL.ok]];
   const filtNote = selectedLocs.size ? `Mostrando en el tablero solo: ${[...selectedLocs].map(k => (WORLD.locs.find(x => x.id === k) || {}).name).filter(Boolean).join(', ')}. Toca otra ubicación para sumarla, o la misma para quitarla. Sin ninguna seleccionada se ven todos los recursos.` : 'Ninguna ubicación seleccionada: el tablero muestra todos los recursos. Toca una o varias para filtrar.';
   detailEl.innerHTML = h + rows.map(([n, v, c]) => `<div class="chk"><span class="dot" style="background:${c}"></span> <b>${n}</b> · ${v}</div>`).join('') + `<div class="hint" style="margin-top:8px">${filtNote}</div>`;
@@ -1836,7 +1865,7 @@ function showWorld(on){
   if (!on){ locPanel.mesh.visible = false; }
   selected = null; selRing.visible = false;
   worldBtn.textContent = on ? 'Volver al mapa de red' : '🌐 Mapa mundial (ubicaciones)';
-  detailEl.innerHTML = on ? '<div class="hint">Globo de ubicaciones: el tamaño y brillo de cada luz indican lo desarrollada que está (número de funciones). El hilo lleva la señal desde el hub (México). Toca una luz para ver su estado.</div>' : '<div class="hint">Selecciona un recurso o un cable del mapa.</div>';
+  detailEl.innerHTML = on ? (LIVE ? '<div class="hint">Globo de regiones de Azure: cada luz es una región donde tienes recursos creados de verdad; el tamaño indica cuántos. El color es el peor estado de Defender en esa región (blanco = sin evaluar). Toca una región para filtrar el tablero.</div>' : '<div class="hint">Globo de ubicaciones: el tamaño y brillo de cada luz indican lo desarrollada que está (número de funciones). El hilo lleva la señal desde el hub (México). Toca una luz para ver su estado.</div>') : '<div class="hint">Selecciona un recurso o un cable del mapa.</div>';
 }
 function animateWorld(s){
   if (performance.now() - worldLast > 20000) worldAuto = true;
@@ -2025,7 +2054,18 @@ async function azConnectToken(rawTok){
       const al = byRid[String(r.id || '').toLowerCase()] || [], checks = [];
       for (const a of al){ if (a.st === 'Unhealthy') checks.push({ s: SEVMAP[a.sev] || 'Media', ok: false, title: a.disp, fix: a.fix || '' }); }
       if (!checks.length && al.length) checks.push({ s: 'Baja', ok: true, title: 'Evaluado por Defender · sano', fix: '' });
-      return { name: r.name, type: mapType(r.type), typeLabel: shortType(r.type) + (r.resourceGroup ? ' · ' + r.resourceGroup : ''), rg: r.resourceGroup || '(sin grupo)', loc: r.location || '', checks };
+      const TYPE_ES = {
+        'microsoft.operationalinsights/workspaces': 'Log Analytics / Sentinel', 'microsoft.storage/storageaccounts': 'Cuenta de almacenamiento',
+        'microsoft.containerinstance/containergroups': 'Instancia de contenedor', 'microsoft.compute/virtualmachines': 'Máquina virtual',
+        'microsoft.compute/virtualmachinescalesets': 'Conjunto de escalado (VMSS)', 'microsoft.keyvault/vaults': 'Key Vault',
+        'microsoft.sql/servers': 'SQL Server lógico', 'microsoft.sql/servers/databases': 'Base de datos SQL', 'microsoft.web/sites': 'App Service',
+        'microsoft.web/serverfarms': 'Plan de App Service', 'microsoft.network/networksecuritygroups': 'Grupo de seguridad de red',
+        'microsoft.network/publicipaddresses': 'IP pública', 'microsoft.network/virtualnetworks': 'Red virtual', 'microsoft.network/privateendpoints': 'Private Endpoint',
+        'microsoft.network/bastionhosts': 'Bastion', 'microsoft.network/azurefirewalls': 'Azure Firewall', 'microsoft.documentdb/databaseaccounts': 'Cosmos DB',
+        'microsoft.resources/deploymentscripts': 'Deployment Script', 'microsoft.operationsmanagement/solutions': 'Solución (Sentinel)'
+      };
+      const t = String(r.type || '').toLowerCase();
+      return { name: r.name, type: mapType(r.type), typeLabel: TYPE_ES[t] || shortType(r.type), armType: r.type, rg: r.resourceGroup || '(sin grupo)', loc: r.location || '', checks };
     });
     if (!nodes.length){ azSetStatus('El token funcionó pero no se leyó ningún recurso (¿suscripción vacía o sin rol Lector?).', 'err'); return; }
     localStorage.setItem('tablero-live', JSON.stringify({ ts: Date.now(), count: nodes.length, nodes }));
