@@ -73,7 +73,7 @@
 
 <div id="hud" class="card">
   <h1>Mapa de red holográfico · Defender for Cloud</h1>
-  <div class="sub">Prototipo v0.36 · <b>datos de ejemplo ficticios</b> (botón verde: cargar tus 5 recursos reales del lab). Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
+  <div class="sub">Prototipo v0.37 · <b>datos de ejemplo ficticios</b> · botón verde: tus 5 recursos del lab · botón azul: leer tu Azure EN VIVO con un token. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
   <button id="cat" style="width:100%;padding:9px;border-radius:14px;border:1px solid #2899f5;background:transparent;color:#6cb8f6;font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px">Ver catálogo de modelos 3D</button>
   <div id="pages" style="display:none;gap:6px;margin-bottom:8px"><button data-p="res">Recursos</button><button data-p="zon">Zonas</button><button data-p="via">Vías y controles</button></div>
   <button id="xr" disabled>Comprobando realidad mixta…</button>
@@ -267,14 +267,43 @@ const REAL_NODES = [
   { id: 'r-ds', name: 'runPowerShellInline', type: 'generic', typeLabel: 'Deployment Script · sin evaluar', group: 'rg-11228727', region: 'East US', loc: '*', pos: [0.36, 0], checks: [] }
 ];
 const REAL_LINKS = [];
+
+/* ===== modo LIVE: datos leídos en vivo de Azure (guardados para sobrevivir al reload y a la entrada en XR) ===== */
+let LIVE_DATA = null;
+try { if (location.hash.includes('live')) LIVE_DATA = JSON.parse(localStorage.getItem('tablero-live') || 'null'); } catch (e) {}
+const LIVE = !!(LIVE_DATA && LIVE_DATA.nodes && LIVE_DATA.nodes.length);
+let LIVE_NODES = [], LIVE_ZONES = [], LIVE_LINKS = [];
+if (LIVE){
+  const rgs = [...new Set(LIVE_DATA.nodes.map(n => n.rg || '(sin grupo)'))];
+  const x0 = -0.49, span = 0.98, colw = span / rgs.length, zw = [-0.17, 0.17];
+  LIVE_ZONES = rgs.map((rg, i) => ({ name: rg, kind: 'rg', x: [x0 + i * colw + 0.012, x0 + (i + 1) * colw - 0.012], z: zw }));
+  const byRg = {}; LIVE_DATA.nodes.forEach(n => { (byRg[n.rg || '(sin grupo)'] ||= []).push(n); });
+  rgs.forEach((rg, i) => {
+    const list = byRg[rg], cx = x0 + i * colw + colw / 2;
+    const cols = Math.max(1, Math.ceil(Math.sqrt(list.length))), rows = Math.ceil(list.length / cols);
+    const stepX = Math.min(0.08, (colw - 0.04) / cols), stepZ = Math.min(0.095, 0.30 / Math.max(1, rows));
+    list.forEach((n, k) => {
+      const r = Math.floor(k / cols), c = k % cols;
+      const gx = cx + (c - (cols - 1) / 2) * stepX, gz = (r - (rows - 1) / 2) * stepZ;
+      LIVE_NODES.push({ id: 'L' + i + '_' + k, name: n.name, type: n.type, typeLabel: n.typeLabel, group: rg, region: n.loc, loc: '*', pos: [gx, gz], checks: n.checks || [] });
+    });
+  });
+}
+
 {
   const rb = document.getElementById('realBtn'), rn = document.getElementById('realNote');
+  const active = REAL || LIVE;
   if (rb){
-    rb.textContent = REAL ? '↩ Volver a la demo' : '🧪 Cargar tus 5 recursos reales (lab TryHackMe)';
-    rb.onclick = () => { location.hash = REAL ? '' : 'real'; location.reload(); };
-    if (REAL && rn){
+    rb.textContent = active ? '↩ Volver a la demo' : '🧪 Cargar tus 5 recursos reales (lab TryHackMe)';
+    rb.onclick = () => { location.hash = active ? '' : 'real'; location.reload(); };
+    if (rn && (active)){
       rn.style.display = 'block';
-      rn.textContent = 'Modo datos reales · tenant Az-Subs-B2C-1 · grupo rg-11228727 (East US). Son los 5 recursos del inventario que exportaste. Todos salen como “sin evaluar” (orbe blanco con franja roja) porque el inventario no trae estado de Defender — es honesto, no inventamos postura.';
+      if (LIVE){
+        const d = new Date(LIVE_DATA.ts || Date.now());
+        rn.textContent = 'Modo EN VIVO · ' + LIVE_DATA.nodes.length + ' recursos leídos de tu Azure el ' + d.toLocaleString('es-ES') + '. El color de cada recurso es su estado real de Microsoft Defender for Cloud. Blanco con franja roja = sin evaluaciones de Defender.';
+      } else {
+        rn.textContent = 'Modo datos reales · tenant Az-Subs-B2C-1 · grupo rg-11228727 (East US). Son los 5 recursos del inventario que exportaste. Todos salen como “sin evaluar” (orbe blanco con franja roja) porque el inventario no trae estado de Defender — es honesto, no inventamos postura.';
+      }
     }
   }
 }
@@ -363,7 +392,7 @@ const catalog = new THREE.Group(); catalog.visible = false; board.add(catalog);
 let T = map;
 
 /* zonas */
-for (const zn of (REAL ? REAL_ZONES : ZONES)){
+for (const zn of (LIVE ? LIVE_ZONES : REAL ? REAL_ZONES : ZONES)){
   const [x0, x1] = zn.x, [z0, z1] = zn.z;
   if (zn.kind === 'vnet'){
     flatPlate(x0, x1, z0, z1, 0.001, 0x0f2d4b, 0.28, 0x2899f5, false);
@@ -773,7 +802,7 @@ function addNode(item){
   rec.anchorY0 = rec.anchorY; nodeRecs.push(rec); byId[item.id] = rec;
   return rec;
 }
-(REAL ? REAL_NODES : NODES).forEach(addNode);
+(LIVE ? LIVE_NODES : REAL ? REAL_NODES : NODES).forEach(addNode);
 
 
 /* cables */
@@ -805,7 +834,7 @@ function addLink(L){
   const rec = { kind: 'link', item, tube, hit, tubeMat, label, pulses, curve, ok: L.ok, baseOpacity, radius, L, speed: L.ok ? 0.16 : 0.32 };
   hit.userData.rec = rec; pickables.push(hit); linkRecs.push(rec);
 }
-(REAL ? REAL_LINKS : LINKS).forEach(addLink);
+(LIVE ? LIVE_LINKS : REAL ? REAL_LINKS : LINKS).forEach(addLink);
 function linkCurve(L){
   const a = endPoint(L.from, L.fromPos), b = endPoint(L.to, L.toPos);
   const mid = a.clone().add(b).multiplyScalar(0.5); mid.y = Math.max(a.y, b.y) + Math.min(0.16, 0.035 + a.distanceTo(b) * 0.2);
@@ -1088,6 +1117,28 @@ addCloseButton(summary.mesh, 0.46, 0.46 * 700 / 1024, 'close-summary');
 function drawSummary(){
   const { ctx, c } = summary; const w = c.width, h = c.height;
   panelFrame(ctx, w, h, 'Defender for Cloud · Resumen');
+  if (LIVE){
+    const nodes = LIVE_NODES;
+    let evald = 0, bad = 0; const cnt = { Alta: 0, Media: 0, Baja: 0 };
+    for (const n of nodes){ if (n.checks.length){ evald++; const wsv = worstSev(n); if (wsv){ bad++; cnt[wsv]++; } } }
+    const unev = nodes.length - evald;
+    ctx.fillStyle = '#8fd14f'; ctx.font = '400 26px "Segoe UI", Arial'; ctx.fillText('EN VIVO · ' + (LIVE_DATA.nodes[0] ? '' : '') + 'tu tenant de Azure', 40, 108);
+    ctx.fillStyle = '#ffffff'; ctx.font = '700 60px "Segoe UI", Arial'; ctx.fillText(nodes.length + '', 40, 210); ctx.font = '400 30px "Segoe UI", Arial'; ctx.fillStyle = '#c8c6c4'; ctx.fillText('recursos leídos', 150, 210);
+    const line = (y, col, big, txt) => { ctx.fillStyle = col; ctx.font = '700 40px "Segoe UI", Arial'; ctx.fillText(big + '', 40, y); ctx.fillStyle = '#e1dfdd'; ctx.font = '400 27px "Segoe UI", Arial'; ctx.fillText(txt, 130, y); };
+    line(300, COL.ok, evald - bad, 'sanos (evaluados por Defender)');
+    line(352, COL.Alta, bad, 'con hallazgos de Defender');
+    line(404, '#ffffff', unev, 'sin evaluar (sin datos de Defender)');
+    ctx.font = '600 26px "Segoe UI", Arial';
+    [['Alta', cnt.Alta], ['Media', cnt.Media], ['Baja', cnt.Baja]].forEach(([k, v], i) => {
+      const x = 46 + i * 180, y = 500; ctx.fillStyle = COL[k]; ctx.beginPath(); ctx.arc(x, y - 9, 11, 0, 7); ctx.fill();
+      ctx.fillStyle = '#ffffff'; ctx.fillText(v + ' ' + k, x + 22, y);
+    });
+    ctx.fillStyle = '#c8c6c4'; ctx.font = '400 23px "Segoe UI", Arial';
+    ctx.fillText('El color de cada recurso en la mesa es su estado', 40, 584);
+    ctx.fillText('real de Microsoft Defender for Cloud.', 40, 616);
+    ctx.fillStyle = '#8fd14f'; ctx.font = '600 22px "Segoe UI", Arial'; ctx.fillText('DATOS REALES EN VIVO', 40, 690);
+    summary.tex.needsUpdate = true; return;
+  }
   if (REAL){
     ctx.fillStyle = '#c8c6c4'; ctx.font = '400 26px "Segoe UI", Arial';
     ctx.fillText('Tenant Az-Subs-B2C-1 · rg-11228727 · East US', 40, 108);
@@ -1945,11 +1996,62 @@ async function azConnect(){
   } catch (e) { azSetStatus('No se pudo iniciar sesión: ' + (e.message || e), 'err'); }
 }
 
+/* ---- conexión por TOKEN temporal (sirve en labs donde no puedes registrar una App) ---- */
+const SEVMAP = { High: 'Alta', Medium: 'Media', Low: 'Baja' };
+function mapType(t){
+  const m = {
+    'microsoft.compute/virtualmachines': 'vm', 'microsoft.compute/virtualmachinescalesets': 'vmss',
+    'microsoft.sql/servers': 'sqlserver', 'microsoft.sql/servers/databases': 'sqldb',
+    'microsoft.storage/storageaccounts': 'storage', 'microsoft.keyvault/vaults': 'keyvault',
+    'microsoft.web/sites': 'webapp', 'microsoft.web/serverfarms': 'generic',
+    'microsoft.network/networksecuritygroups': 'nsg', 'microsoft.network/publicipaddresses': 'pip',
+    'microsoft.network/virtualnetworkgateways': 'vpngw', 'microsoft.network/privateendpoints': 'pe',
+    'microsoft.network/loadbalancers': 'lb', 'microsoft.network/natgateways': 'natgw',
+    'microsoft.network/azurefirewalls': 'firewall', 'microsoft.network/applicationgateways': 'appgw',
+    'microsoft.network/bastionhosts': 'bastion', 'microsoft.network/virtualnetworks': 'generic',
+    'microsoft.operationalinsights/workspaces': 'loganalytics', 'microsoft.documentdb/databaseaccounts': 'cosmos'
+  };
+  return m[String(t || '').toLowerCase()] || 'generic';
+}
+async function azConnectToken(rawTok){
+  azToken = String(rawTok || '').trim().replace(/^Bearer\s+/i, '');
+  if (!azToken){ azSetStatus('Pega primero el token de acceso.', 'err'); return; }
+  azSetStatus('Leyendo tu tenant en vivo…', '');
+  try {
+    const inv = await azQuery('Resources | project id, name, type, resourceGroup, location | limit 500');
+    const ass = await azQuery("securityresources | where type == 'microsoft.security/assessments' | extend rid=tolower(tostring(properties.resourceDetails.Id)), st=tostring(properties.status.code), sev=tostring(properties.metadata.severity), disp=tostring(properties.displayName), fix=tostring(properties.metadata.remediationDescription) | project rid, st, sev, disp, fix | limit 2000");
+    const byRid = {}; ass.forEach(a => { (byRid[a.rid] ||= []).push(a); });
+    const nodes = inv.map(r => {
+      const al = byRid[String(r.id || '').toLowerCase()] || [], checks = [];
+      for (const a of al){ if (a.st === 'Unhealthy') checks.push({ s: SEVMAP[a.sev] || 'Media', ok: false, title: a.disp, fix: a.fix || '' }); }
+      if (!checks.length && al.length) checks.push({ s: 'Baja', ok: true, title: 'Evaluado por Defender · sano', fix: '' });
+      return { name: r.name, type: mapType(r.type), typeLabel: shortType(r.type) + (r.resourceGroup ? ' · ' + r.resourceGroup : ''), rg: r.resourceGroup || '(sin grupo)', loc: r.location || '', checks };
+    });
+    if (!nodes.length){ azSetStatus('El token funcionó pero no se leyó ningún recurso (¿suscripción vacía o sin rol Lector?).', 'err'); return; }
+    localStorage.setItem('tablero-live', JSON.stringify({ ts: Date.now(), count: nodes.length, nodes }));
+    azSetStatus('Leídos ' + nodes.length + ' recursos. Cargando el tablero en vivo…', 'ok');
+    setTimeout(() => { location.hash = 'live'; location.reload(); }, 600);
+  } catch (e){
+    const m = String(e.message || e);
+    if (/401|invalid|expired|IDX/i.test(m)) azSetStatus('Token no válido o caducado (duran ~1 h). Saca uno nuevo y pégalo otra vez.', 'err');
+    else if (/CORS|Failed to fetch|NetworkError/i.test(m)) azSetStatus('Aquí dentro de Claude el navegador no puede llamar a Azure. Ábrelo en tu GitHub Pages y pega el token allí. Si también falla ahí, me lo dices.', 'err');
+    else if (/403|Forbidden|Authorization/i.test(m)) azSetStatus('Token OK pero faltan permisos: asígnate Lector y Lector de seguridad en la suscripción.', 'err');
+    else azSetStatus('Error al leer Azure: ' + m, 'err');
+  }
+}
+
 function openAzure(){
   const el = document.getElementById('azure'); const cfg = azCfg() || {};
   el.innerHTML = `<h2>Conectar con tu tenant de Azure <span style="font-size:12px;color:#ffb900">· beta</span></h2>
     <div class="hint">Lee tu tenant en vivo con tu identidad, en <b>solo lectura</b>. No guarda datos ni contraseñas. Funciona al abrir la página en GitHub Pages; aquí dentro de Claude el inicio de sesión está bloqueado.</div>
     <div id="azForm">
+      <div style="background:#0d2a12;border:1px solid #2e6b33;border-radius:12px;padding:10px 12px;margin-bottom:12px">
+        <div style="font-weight:700;color:#8fd14f;margin-bottom:4px">✅ Opción rápida para tu lab (recomendada): token temporal</div>
+        <div class="hint" style="margin:0 0 8px">Sin registrar nada. En tu Azure abre <b>Cloud Shell</b> (icono ">_" arriba) y ejecuta:<br><code style="color:#8fd14f">az account get-access-token --resource https://management.azure.com --query accessToken -o tsv</code><br>Copia el texto largo que sale y pégalo aquí. Caduca en ~1 h.</div>
+        <label>Token de acceso<textarea id="azTok" rows="3" placeholder="eyJ0eXAiOiJKV1Qi..." style="width:100%;font-family:monospace;font-size:11px;resize:vertical"></textarea></label>
+        <div class="row"><button id="azGoTok" class="primary" style="background:#2e8b3a">🔌 Leer mi Azure en vivo</button></div>
+      </div>
+      <div style="font-weight:600;color:#8a9099;margin-bottom:6px">Opción permanente (para el tenant de TCM): registrar App</div>
       <label>Id. de aplicación (cliente)<input id="azClient" placeholder="00000000-0000-0000-0000-000000000000" value="${cfg.clientId || ''}"></label>
       <label>Id. de directorio (inquilino)<input id="azTenant" placeholder="00000000-0000-0000-0000-000000000000" value="${cfg.tenantId || ''}"></label>
       <div class="row"><button id="azGo" class="primary">Iniciar sesión con Microsoft</button><button id="azClose2">Cerrar</button></div>
@@ -1958,6 +2060,7 @@ function openAzure(){
     <div id="azBody"></div>`;
   el.style.display = 'block';
   document.getElementById('azClose2').onclick = () => { el.style.display = 'none'; };
+  document.getElementById('azGoTok').onclick = () => azConnectToken(document.getElementById('azTok').value);
   document.getElementById('azGo').onclick = () => {
     const clientId = document.getElementById('azClient').value.trim(), tenantId = document.getElementById('azTenant').value.trim();
     if (!clientId || !tenantId){ azSetStatus('Pega los dos identificadores primero.', 'err'); return; }
