@@ -73,7 +73,7 @@
 
 <div id="hud" class="card">
   <h1>Mapa de red holográfico · Defender for Cloud</h1>
-  <div class="sub">Prototipo v0.39 · <b>datos de ejemplo ficticios</b> · botón verde: tus 5 recursos del lab · botón azul: leer tu Azure EN VIVO con un token. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
+  <div class="sub">Prototipo v0.40 · <b>datos de ejemplo ficticios</b> · botón verde: tus 5 recursos del lab · botón azul: leer tu Azure EN VIVO con un token. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
   <button id="cat" style="width:100%;padding:9px;border-radius:14px;border:1px solid #2899f5;background:transparent;color:#6cb8f6;font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px">Ver catálogo de modelos 3D</button>
   <div id="pages" style="display:none;gap:6px;margin-bottom:8px"><button data-p="res">Recursos</button><button data-p="zon">Zonas</button><button data-p="via">Vías y controles</button></div>
   <button id="xr" disabled>Comprobando realidad mixta…</button>
@@ -852,7 +852,7 @@ for (const l of linkRecs) for (const id of [l.L.from, l.L.to]) if (id) (nodeLink
 for (const r of nodeRecs){ r.s = 1; r.anchorY0 = r.anchorY; }
 
 /* barra de herramientas 3D (útil en RM; en escritorio hay otra en HTML) */
-const TOOLS = [['move', '⟲ Colocar'], ['edit', '✋ Editar'], ['pminus', 'Pieza −'], ['pplus', 'Pieza +'], ['mminus', 'Maqueta −'], ['mplus', 'Maqueta +'], ['reset', '↺ Restablecer'], ['colors', '🎨 Colores'], ['catalog', '📘 Catálogo'], ['world', '🌐 Globo'], ['panels', '🗔 Paneles']];
+const TOOLS = [['move', '⟲ Colocar'], ['edit', '✋ Editar'], ['pminus', 'Pieza −'], ['pplus', 'Pieza +'], ['mminus', 'Maqueta −'], ['mplus', 'Maqueta +'], ['reset', '↺ Restablecer'], ['colors', '🎨 Colores'], ['catalog', '📘 Catálogo'], ['world', '🌐 Globo'], ['compliance', '📋 MCSB'], ['panels', '🗔 Paneles']];
 const toolBtns = {};
 const toolbar = new THREE.Group(); board.add(toolbar);
 TOOLS.forEach(([action, text], i) => {
@@ -1408,6 +1408,8 @@ function doAction(a){
     case 'close-detail': detail.mesh.visible = false; break;
     case 'close-loc': locPanel.mesh.visible = false; break;
     case 'close-world': showWorld(false); break;
+    case 'compliance': showCompliance(!compliance.mesh.visible); break;
+    case 'close-compliance': showCompliance(false); break;
     case 'panels': { const v = !(summary.mesh.visible && detail.mesh.visible); summary.mesh.visible = detail.mesh.visible = v && !worldGroup.visible && !insp; setMsg(v ? 'Paneles de resumen y detalle mostrados.' : 'Paneles ocultos. Pulsa “Paneles” para traerlos de vuelta.'); break; }
     case 'reset': resetLayout(); setMsg('Maqueta restablecida a la disposición original.'); break;
   }
@@ -1903,6 +1905,60 @@ worldBtn.id = 'worldBtn'; worldBtn.textContent = '🌐 Mapa mundial (ubicaciones
 worldBtn.style.cssText = 'width:100%;padding:9px;border-radius:14px;border:1px solid #2899f5;background:transparent;color:#6cb8f6;font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px';
 document.getElementById('cat').after(worldBtn);
 worldBtn.addEventListener('click', () => showWorld(!worldGroup.visible));
+
+/* ===================== panel de Cumplimiento · MCSB real (exportado de Defender) ===================== */
+const MCSB_REAL = {
+  source: 'Export real de Defender · tenant THM-B2C · Az-Subs-B2C-1',
+  controls: 85, compatible: 85, polTotal: 298, notMeasured: 43,
+  fam: [
+    ['AM', 'Asset Management', 5, 5, 4], ['BR', 'Backup & Recovery', 4, 4, 8],
+    ['DP', 'Data Protection', 8, 8, 50], ['DS', 'DevOps Security', 7, 7, 2],
+    ['ES', 'Endpoint Security', 3, 3, 2], ['GS', 'Governance & Strategy', 10, 10, 0],
+    ['IM', 'Identity Management', 9, 9, 25], ['IR', 'Incident Response', 7, 7, 38],
+    ['LT', 'Logging & Threat Detection', 7, 7, 56], ['NS', 'Network Security', 10, 10, 52],
+    ['PA', 'Privileged Access', 8, 8, 14], ['PV', 'Posture & Vuln. Mgmt', 7, 7, 47]
+  ]
+};
+const compliance = makePanel(1024, 1180, 0.56);
+compliance.mesh.visible = false; compliance.mesh.position.set(0.0, 0.46, -0.46); compliance.mesh.rotation.set(-0.12, 0, 0); board.add(compliance.mesh);
+addCloseButton(compliance.mesh, 0.56, 0.56 * 1180 / 1024, 'close-compliance');
+function drawCompliance(){
+  const { ctx, c } = compliance; const w = c.width, h = c.height;
+  panelFrame(ctx, w, h, 'Cumplimiento · MCSB (Defender)');
+  ctx.fillStyle = '#c8c6c4'; ctx.font = '400 24px "Segoe UI", Arial'; ctx.fillText(MCSB_REAL.source, 40, 108);
+  ctx.fillStyle = COL.ok; ctx.font = '700 46px "Segoe UI", Arial'; ctx.fillText(MCSB_REAL.compatible + '/' + MCSB_REAL.controls, 40, 172);
+  ctx.fillStyle = '#e1dfdd'; ctx.font = '400 26px "Segoe UI", Arial'; ctx.fillText('controles compatibles', 190, 172);
+  ctx.fillStyle = '#3a2d10'; rr(ctx, 40, 198, w - 80, 108, 14); ctx.fill();
+  ctx.fillStyle = '#ffb900'; ctx.font = '700 23px "Segoe UI", Arial'; ctx.fillText('⚠ Verde engañoso (lectura de DPO):', 62, 236);
+  ctx.fillStyle = '#e1dfdd'; ctx.font = '400 21px "Segoe UI", Arial';
+  ctx.fillText(MCSB_REAL.notMeasured + ' de ' + MCSB_REAL.controls + ' controles tienen 0 directivas (no medidos); el resto cumple', 62, 266);
+  ctx.fillText('porque el tenant casi no tiene recursos. En auditoría: observación por', 62, 292);
+  ctx.fillText('falta de cobertura, no conformidad real.', 62, 318);
+  let y = 372; const bw = 330, bx = 440;
+  for (const [id, name, ctrl, ok, pol] of MCSB_REAL.fam){
+    const measured = pol > 0;
+    ctx.fillStyle = measured ? COL.ok : '#8a9099'; ctx.beginPath(); ctx.arc(60, y - 7, 9, 0, 7); ctx.fill();
+    ctx.fillStyle = '#ffffff'; ctx.font = '700 22px "Segoe UI", Arial'; ctx.fillText(id, 82, y);
+    ctx.fillStyle = '#e1dfdd'; ctx.font = '400 22px "Segoe UI", Arial'; ctx.fillText(name, 130, y);
+    rr(ctx, bx, y - 18, bw, 20, 10); ctx.fillStyle = '#3b3a39'; ctx.fill();
+    rr(ctx, bx, y - 18, bw * (ok / ctrl), 20, 10); ctx.fillStyle = measured ? COL.ok : '#5a6470'; ctx.fill();
+    ctx.fillStyle = '#c8c6c4'; ctx.font = '400 20px "Segoe UI", Arial'; ctx.textAlign = 'right';
+    ctx.fillText(ok + '/' + ctrl + '  ·  ' + (measured ? pol + ' dir.' : 'sin medir'), w - 40, y); ctx.textAlign = 'left';
+    y += 46;
+  }
+  ctx.fillStyle = '#8fd14f'; ctx.font = '600 22px "Segoe UI", Arial'; ctx.fillText('Datos reales de tu Defender · ' + MCSB_REAL.polTotal + ' directivas evaluadas', 40, h - 30);
+  compliance.tex.needsUpdate = true;
+}
+function showCompliance(on){
+  if (on){ drawCompliance(); summary.mesh.visible = false; detail.mesh.visible = false; }
+  compliance.mesh.visible = on;
+  compBtn.textContent = on ? 'Cerrar cumplimiento MCSB' : '📋 Cumplimiento (MCSB real)';
+}
+const compBtn = document.createElement('button');
+compBtn.id = 'compBtn'; compBtn.textContent = '📋 Cumplimiento (MCSB real)';
+compBtn.style.cssText = 'width:100%;padding:9px;border-radius:14px;border:1px solid #8fd14f;background:transparent;color:#8fd14f;font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px';
+worldBtn.after(compBtn);
+compBtn.addEventListener('click', () => showCompliance(!compliance.mesh.visible));
 
 renderer.setAnimationLoop((t, frame) => {
   const s = t / 1000;
