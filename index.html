@@ -73,7 +73,7 @@
 
 <div id="hud" class="card">
   <h1>Mapa de red holográfico · Defender for Cloud</h1>
-  <div class="sub">Prototipo v0.34 · <b>datos de ejemplo ficticios</b>. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
+  <div class="sub">Prototipo v0.35 · <b>datos de ejemplo ficticios</b>. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
   <button id="cat" style="width:100%;padding:9px;border-radius:14px;border:1px solid #2899f5;background:transparent;color:#6cb8f6;font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px">Ver catálogo de modelos 3D</button>
   <div id="pages" style="display:none;gap:6px;margin-bottom:8px"><button data-p="res">Recursos</button><button data-p="zon">Zonas</button><button data-p="via">Vías y controles</button></div>
   <button id="xr" disabled>Comprobando realidad mixta…</button>
@@ -456,7 +456,7 @@ function openPalette(){
   };
 }
 /* Aplica una paleta rápida en vivo (recolorea estados: orbe, aros, cables). Para usar en XR, donde no se puede abrir el panel HTML. */
-let paletteIdx = 0;
+let paletteIdx = 1;   // el primer toque en XR salta a Daltonismo (cambio bien visible)
 function applyPreset(name){
   const pr = PRESETS[name]; if (!pr) return;
   Object.assign(COL, pr.col);
@@ -1381,7 +1381,7 @@ canvas.addEventListener('dblclick', () => { if (selected && selected.kind === 'n
 /* ===================== realidad mixta (WebXR) ===================== */
 const btn = document.getElementById('xr'); const msgEl = document.getElementById('msg');
 function setMsg(t){ msgEl.textContent = t; }
-let hitTestSource = null, placing = false, lastHitAt = 0, xrStartAt = 0;
+let hitTestSource = null, placing = false, lastHitAt = 0, xrStartAt = 0, placedAt = 0;
 
 (async () => {
   let ok = false;
@@ -1405,7 +1405,7 @@ btn.addEventListener('click', async () => {
 
 function onXRStart(session){
   scene.background = null; renderer.setClearColor(0x000000, 0);
-  placing = true; placeHint.visible = true; board.visible = false; xrStartAt = performance.now(); lastHitAt = 0;
+  placing = true; placeHint.visible = true; board.visible = false; xrStartAt = performance.now(); lastHitAt = 0; placedAt = 0;
   session.requestReferenceSpace('viewer')
     .then(vs => session.requestHitTestSource ? session.requestHitTestSource({ space: vs }) : null)
     .then(src => { hitTestSource = src; }).catch(() => { hitTestSource = null; });
@@ -1442,6 +1442,7 @@ const tmpM = new THREE.Matrix4();
    · Sujetando una pieza con una mano, el grip de la otra mano + estirar = cambia el tamaño de esa pieza. */
 const cPos = [new THREE.Vector3(), new THREE.Vector3()];
 let two = null;
+const MOVE_GAIN = 2.3;   // mover más suelto: el objeto se desplaza más que el brazo
 function ctrlPos(ctrl, out){ return out.setFromMatrixPosition(ctrl.matrixWorld); }
 function nearestNode(wp){
   let best = null, bd = 1e9; const v = new THREE.Vector3();
@@ -1496,7 +1497,7 @@ function updateSqueeze(){
         const q = new THREE.Quaternion().setFromUnitVectors(two.v0.clone().normalize(), v1.clone().normalize());
         inspector.quaternion.copy(q).multiply(two.q0);
       }
-      inspector.position.copy(two.p0).add(a.clone().add(b).multiplyScalar(0.5).sub(two.m0));
+      inspector.position.copy(two.p0).add(a.clone().add(b).multiplyScalar(0.5).sub(two.m0).multiplyScalar(MOVE_GAIN));
       return;
     }
     const d = ctrlPos(controllers[0], cPos[0]).distanceTo(ctrlPos(controllers[1], cPos[1]));
@@ -1506,11 +1507,11 @@ function updateSqueeze(){
   for (const ctrl of controllers){
     const sq = ctrl.userData.sq; if (!sq) continue;
     const wp = ctrlPos(ctrl, new THREE.Vector3());
-    if (sq.mode === 'board'){ board.position.copy(sq.b0).add(wp.sub(sq.start)); }
+    if (sq.mode === 'board'){ board.position.copy(sq.b0).add(wp.clone().sub(sq.start).multiplyScalar(MOVE_GAIN)); }
     else if (sq.mode === 'globe'){ const dx = wp.x - sq.lastX; worldSpin.rotation.y += dx * 6; worldVel = dx * 6; sq.lastX = wp.x; worldAuto = false; worldLast = performance.now(); }
-    else if (sq.mode === 'floatglobe'){ worldGroup.position.copy(sq.p0).add(wp.sub(sq.start)); }
+    else if (sq.mode === 'floatglobe'){ worldGroup.position.copy(sq.p0).add(wp.clone().sub(sq.start).multiplyScalar(MOVE_GAIN)); }
     else if (sq.mode === 'insp'){
-      inspector.position.copy(sq.p0).add(wp.sub(sq.start));
+      inspector.position.copy(sq.p0).add(wp.clone().sub(sq.start).multiplyScalar(MOVE_GAIN));
       const cq = ctrl.getWorldQuaternion(new THREE.Quaternion());
       inspector.quaternion.copy(cq.multiply(sq.cq0.clone().invert())).multiply(sq.q0);
     }
@@ -1529,7 +1530,7 @@ function rayFrom(ctrl){
 }
 function onSelectXR(ctrl){
   if (ctrl.userData.grab) return;
-  if (placing){ if (board.visible){ placing = false; placeHint.visible = false; } return; }
+  if (placing){ if (board.visible){ placing = false; placeHint.visible = false; placedAt = 0; } return; }
   const hit = rayFrom(ctrl); if (hit) handlePick(hit.object);
 }
 const camPos = new THREE.Vector3(), camDir = new THREE.Vector3();
@@ -1693,7 +1694,8 @@ function selectLoc(rec){
   applyLocFilter(); updateMarkerHighlights();
   selected = rec; selRing.visible = false;
   drawLocPanel(rec.item);
-  locPanel.mesh.position.copy(rec.nrm.clone().multiplyScalar(WR + 0.14)).add(new THREE.Vector3(0, 0.05, 0));
+  locPanel.mesh.position.copy(rec.nrm.clone().multiplyScalar(WR + 0.04)).add(new THREE.Vector3(0.11, 0.02, 0));
+  locPanel.mesh.scale.setScalar(1.4);
   locPanel.mesh.visible = true;
   const l = rec.item, h = `<h2>${esc(l.name)}</h2><div class="meta">${l.funcs} funciones · estado general</div>`;
   const rows = [['Fallo alta', l.status.Alta, COL.Alta], ['Fallo media', l.status.Media, COL.Media], ['Fallo baja', l.status.Baja, COL.Baja], ['Correcto', l.status.ok, COL.ok]];
@@ -1770,9 +1772,11 @@ renderer.setAnimationLoop((t, frame) => {
       let got = false;
       if (frame && hitTestSource){
         const res = frame.getHitTestResults(hitTestSource);
-        if (res.length){ const pose = res[0].getPose(renderer.xr.getReferenceSpace()); if (pose){ const p = pose.transform.position; board.position.set(p.x, p.y, p.z); faceUser(); board.visible = true; got = true; lastHitAt = t; } }
+        if (res.length){ const pose = res[0].getPose(renderer.xr.getReferenceSpace()); if (pose){ const p = pose.transform.position; board.position.set(p.x, p.y, p.z); faceUser(); board.visible = true; got = true; lastHitAt = t; if (!placedAt) placedAt = t; } }
       }
-      if (!got && t - lastHitAt > 2500 && performance.now() - xrStartAt > 1500) placeInFront();
+      if (!got && t - lastHitAt > 2500 && performance.now() - xrStartAt > 1500){ placeInFront(); if (!placedAt) placedAt = t; }
+      /* seguro anti-bloqueo: si ya está colocado y pasaron unos segundos sin confirmar, se fija solo para poder interactuar */
+      if (placedAt && board.visible && t - placedAt > 6000){ placing = false; placeHint.visible = false; placedAt = 0; }
     }
     updateSqueeze();
     for (const ctrl of controllers){
