@@ -73,7 +73,7 @@
 
 <div id="hud" class="card">
   <h1>Mapa de red holográfico · Defender for Cloud</h1>
-  <div class="sub">Prototipo v0.42 · <b>datos de ejemplo ficticios</b> · botón verde: tus 5 recursos del lab · botón azul: leer tu Azure EN VIVO con un token. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
+  <div class="sub">Prototipo v0.43 · <b>datos de ejemplo ficticios</b> · botón verde: tus 5 recursos del lab · botón azul: leer tu Azure EN VIVO con un token. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
   <button id="cat" style="width:100%;padding:9px;border-radius:14px;border:1px solid #2899f5;background:transparent;color:#6cb8f6;font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px">Ver catálogo de modelos 3D</button>
   <div id="pages" style="display:none;gap:6px;margin-bottom:8px"><button data-p="res">Recursos</button><button data-p="zon">Zonas</button><button data-p="via">Vías y controles</button></div>
   <button id="xr" disabled>Comprobando realidad mixta…</button>
@@ -1255,15 +1255,36 @@ function drawDetail(it){
 /* ===================== cockpit de cumplimiento (bóveda MCSB → policies.json) ===================== */
 let POLICIES = [];
 fetch('policies.json').then(r => r.ok ? r.json() : []).then(d => { POLICIES = d || []; if (selected && selected.kind === 'node') renderDetailHTML(selected.item); }).catch(() => {});
+const NET = ['Virtual Network', 'Network Security Group', 'Network Watcher', 'Firewall', 'VPN Gateway'];
 const SERVICE_MAP = {
-  vm: 'Virtual Machines', vmss: 'Virtual Machines', sqlserver: 'SQL', sqldb: 'SQL', storage: 'Storage',
-  keyvault: 'Key Vault', webapp: 'App Service', cosmos: 'Cosmos DB', loganalytics: 'Suscripción / Tenant',
-  sub: 'Suscripción / Tenant', generic: 'Suscripción / Tenant'
+  vm: ['Virtual Machines'], vmss: ['Virtual Machines'], sqlserver: ['SQL'], sqldb: ['SQL'], storage: ['Storage'],
+  keyvault: ['Key Vault'], webapp: ['App Service'], cosmos: ['Cosmos DB'], loganalytics: ['Suscripción / Tenant'],
+  sub: ['Suscripción / Tenant'], generic: ['Suscripción / Tenant'],
+  nsg: ['Network Security Group'], firewall: ['Firewall'], vpngw: ['VPN Gateway'],
+  pe: ['Virtual Network'], lb: NET, natgw: NET, bastion: NET, pip: NET, appgw: ['App Service', 'Virtual Network'],
+  aks: ['Kubernetes (AKS)'], apim: ['API Management'], acr: ['Container Registry'], redis: ['Redis Cache'],
+  ml: ['Machine Learning'], databricks: ['Databricks'], synapse: ['Synapse']
+};
+const ARM_SERVICE = {
+  'microsoft.storage/storageaccounts': ['Storage'], 'microsoft.keyvault/vaults': ['Key Vault'],
+  'microsoft.sql/servers': ['SQL'], 'microsoft.compute/virtualmachines': ['Virtual Machines'],
+  'microsoft.compute/virtualmachinescalesets': ['Virtual Machines'], 'microsoft.web/sites': ['App Service'],
+  'microsoft.containerservice/managedclusters': ['Kubernetes (AKS)'], 'microsoft.apimanagement/service': ['API Management'],
+  'microsoft.documentdb/databaseaccounts': ['Cosmos DB'], 'microsoft.network/networksecuritygroups': ['Network Security Group'],
+  'microsoft.network/azurefirewalls': ['Firewall'], 'microsoft.network/virtualnetworkgateways': ['VPN Gateway'],
+  'microsoft.network/virtualnetworks': NET, 'microsoft.containerregistry/registries': ['Container Registry'],
+  'microsoft.cache/redis': ['Redis Cache'], 'microsoft.machinelearningservices/workspaces': ['Machine Learning'],
+  'microsoft.databricks/workspaces': ['Databricks'], 'microsoft.synapse/workspaces': ['Synapse'],
+  'microsoft.operationalinsights/workspaces': ['Suscripción / Tenant'], 'microsoft.servicefabric/clusters': ['Service Fabric']
 };
 const FW_LABEL = { iso: 'ISO 27001', ens: 'ENS', nis2: 'NIS2', rgpd: 'RGPD' };
+function servicesFor(it){
+  if (it.armType){ const a = it.armType.toLowerCase(); for (const k in ARM_SERVICE) if (a.startsWith(k)) return ARM_SERVICE[k]; }
+  return SERVICE_MAP[it.type] || null;
+}
 function policiesForNode(it){
-  const svc = SERVICE_MAP[it.type]; if (!svc || !POLICIES.length) return [];
-  return POLICIES.filter(p => p.service === svc);
+  const svcs = servicesFor(it); if (!svcs || !POLICIES.length) return [];
+  return POLICIES.filter(p => svcs.includes(p.service));
 }
 function cockpitHTML(it){
   const ps = policiesForNode(it); if (!ps.length) return '';
@@ -1282,7 +1303,7 @@ function cockpitHTML(it){
   };
   return `<div style="margin-top:12px;border-top:2px solid #3a4a2a;padding-top:8px">` +
     `<div style="font-weight:700;color:#8fd14f;font-size:13px">📋 Cumplimiento del recurso</div>` +
-    `<div class="meta">${ps.length} políticas MCSB aplican a <b>${esc(SERVICE_MAP[it.type])}</b></div>` +
+    `<div class="meta">${ps.length} políticas MCSB aplican a <b>${esc((servicesFor(it) || []).join(' · '))}</b></div>` +
     `<div style="margin:6px 0">${['iso', 'ens', 'nis2', 'rgpd'].map(badge).join('')}</div>` +
     ps.slice(0, 25).map(pol).join('') +
     (ps.length > 25 ? `<div class="hint">…y ${ps.length - 25} más</div>` : '') +
