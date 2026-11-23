@@ -1,0 +1,11 @@
+.git
+.github
+*.md
+tablero
+tst
+extract_vault.py
+extract_full.py
+_fuentes-microsoft
+Boveda Obsidian
+*.csv
+node_modules

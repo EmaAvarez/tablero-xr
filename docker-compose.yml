@@ -1,0 +1,10 @@
+services:
+  tablero:
+    build: .
+    image: tablero-xr:latest
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    # Para imagen pública sin hornear la bóveda, descomenta y quita el COPY del Dockerfile:
+    # volumes:
+    #   - ./policies.json:/usr/share/nginx/html/policies.json:ro
