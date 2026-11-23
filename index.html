@@ -73,7 +73,7 @@
 
 <div id="hud" class="card">
   <h1>Mapa de red holográfico · Defender for Cloud</h1>
-  <div class="sub">Prototipo v0.53 · <b>datos de ejemplo ficticios</b> · botón verde: tus 5 recursos del lab · botón azul: leer tu Azure EN VIVO con un token. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
+  <div class="sub">Prototipo v0.54 · <b>datos de ejemplo ficticios</b> · botón verde: tus 5 recursos del lab · botón azul: leer tu Azure EN VIVO con un token. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
   <button id="cat" style="width:100%;padding:9px;border-radius:14px;border:1px solid #2899f5;background:transparent;color:#6cb8f6;font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px">Ver catálogo de modelos 3D</button>
   <div id="pages" style="display:none;gap:6px;margin-bottom:8px"><button data-p="res">Recursos</button><button data-p="zon">Zonas</button><button data-p="via">Vías y controles</button></div>
   <button id="xr" disabled>Comprobando realidad mixta…</button>
@@ -1125,7 +1125,7 @@ function addCloseButton(parent, wM, hM, action, isInsp){
 }
 
 const summary = makePanel(1024, 700, 0.46);
-summary.mesh.position.set(-0.3, 0.36, -0.5); summary.mesh.rotation.set(-0.2, 0.28, 0); board.add(summary.mesh);
+summary.mesh.position.set(0.5, 0.34, -0.2); board.add(summary.mesh);
 addCloseButton(summary.mesh, 0.46, 0.46 * 700 / 1024, 'close-summary');
 function drawSummary(){
   const { ctx, c } = summary; const w = c.width, h = c.height;
@@ -1464,7 +1464,8 @@ function showCockpit(it){
   fwArrowL.visible = fwArrowR.visible = cockpitShown;
   remPanel.mesh.visible = false;
   if (!cockpitShown){ layoutCarousel(); return; }
-  fwGroup.position.set(-0.52, 0.4, -0.28); // a la izquierda del usuario
+  fwGroup.position.set(-0.68, 0.36, -0.18); // a la izquierda del usuario
+  detail.mesh.visible = false; // la ficha 3D redundante se oculta; manda el cockpit
   FW_DEF.forEach(([label, accent, key], i) => { const P = fwPanels[i]; P.label = label; P.accent = accent; P.key = key; P.list = fwPoliciesFor(ps, key); P.scroll = 0; P.open = -1; drawFwPanel(P); });
   layoutCarousel();
 }
@@ -1884,8 +1885,18 @@ function placeInFront(){
 
 /* ===================== etiquetas legibles a cualquier escala ===================== */
 const lblPos = new THREE.Vector3(), eye = new THREE.Vector3();
+const gazeDir = new THREE.Vector3(), toNode = new THREE.Vector3();
 function sizeLabels(){
-  const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera; cam.getWorldPosition(eye);
+  const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera; cam.getWorldPosition(eye); cam.getWorldDirection(gazeDir);
+  const dense = nodeRecs.length > 28 && !insp && !catalog.visible && !worldGroup.visible; // mesas llenas: solo etiqueta lo que miras (máx ~6)
+  if (dense){
+    const scored = [];
+    for (const r of nodeRecs){ if (!shown(r.grp)){ r.label.visible = false; continue; } r.label.getWorldPosition(lblPos); toNode.copy(lblPos).sub(eye); toNode.normalize(); scored.push({ r, dot: gazeDir.dot(toNode) }); }
+    scored.sort((a, b) => b.dot - a.dot);
+    const keep = new Set(scored.slice(0, 6).filter(s => s.dot > 0.9).map(s => s.r));
+    if (selected && selected.grp) keep.add(selected);
+    for (const s of scored) s.r.label.visible = keep.has(s.r) || (selected && selected.grp === s.r.grp);
+  }
   for (const r of nodeRecs){
     if (!shown(r.grp)) continue;
     r.label.getWorldPosition(lblPos);
@@ -2107,14 +2118,12 @@ function animateWorld(s){
   for (const m of worldMarkers){ const k = 1 + 0.18 * Math.sin(s * 2.2 + m.phase); m.glow.scale.setScalar((0.04 + 0.075 * m.f) * k); m.ring.scale.setScalar(k); m.ring.material.opacity = 0.5 + 0.4 * Math.sin(s * 2.2 + m.phase); }
   for (const L of worldLinks) for (const p of L.pulses) p.m.position.copy(L.curve.getPoint((s * 0.18 + p.off) % 1));
   /* el cartel de info de la ubicación mira siempre a las gafas, esté donde esté el globo */
-  if (cockpitShown){
-    // billboard SOLO en horizontal (yaw): las pantallas encaran al usuario pero quedan rectas, sin inclinarse
+  { // billboard SOLO horizontal (yaw): las pantallas encaran al usuario pero quedan rectas, sin inclinarse
     const camW = (renderer.xr.isPresenting ? renderer.xr.getCamera() : camera).getWorldPosition(new THREE.Vector3());
-    const grpW = fwGroup.getWorldPosition(new THREE.Vector3());
-    const yaw = Math.atan2(camW.x - grpW.x, camW.z - grpW.z);
-    const qWorld = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, 0));
     const invP = board.getWorldQuaternion(new THREE.Quaternion()).invert();
-    fwGroup.quaternion.copy(invP.multiply(qWorld));
+    const yawTo = obj => { const w = obj.getWorldPosition(new THREE.Vector3()); const yaw = Math.atan2(camW.x - w.x, camW.z - w.z); const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, 0)); obj.quaternion.copy(invP.clone().multiply(q)); };
+    if (cockpitShown) yawTo(fwGroup);
+    if (summary.mesh.visible) yawTo(summary.mesh);
   }
   if (locPanel.mesh.visible){
     const camQ = camera.getWorldQuaternion(new THREE.Quaternion());
