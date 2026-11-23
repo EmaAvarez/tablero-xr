@@ -73,7 +73,7 @@
 
 <div id="hud" class="card">
   <h1>Mapa de red holográfico · Defender for Cloud</h1>
-  <div class="sub">Prototipo v0.48 · <b>datos de ejemplo ficticios</b> · botón verde: tus 5 recursos del lab · botón azul: leer tu Azure EN VIVO con un token. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
+  <div class="sub">Prototipo v0.49 · <b>datos de ejemplo ficticios</b> · botón verde: tus 5 recursos del lab · botón azul: leer tu Azure EN VIVO con un token. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
   <button id="cat" style="width:100%;padding:9px;border-radius:14px;border:1px solid #2899f5;background:transparent;color:#6cb8f6;font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px">Ver catálogo de modelos 3D</button>
   <div id="pages" style="display:none;gap:6px;margin-bottom:8px"><button data-p="res">Recursos</button><button data-p="zon">Zonas</button><button data-p="via">Vías y controles</button></div>
   <button id="xr" disabled>Comprobando realidad mixta…</button>
@@ -1367,16 +1367,39 @@ function renderDetailHTML(it){
     `<div class="hint" style="margin-top:10px">Severidades, textos y dominios MCSB de ejemplo. En la versión conectada salen tal cual de Defender for Cloud.</div>`;
 }
 
-/* ===== pantallas por marco en 3D (abanico detrás del recurso) ===== */
+/* ===== pantallas por marco en 3D (CARRUSEL: una al frente, flechas para girar) ===== */
 const FW_DEF = [['ISO 27001', '#5aa0ff', 'iso'], ['ENS', '#f0a35e', 'ens'], ['MCSB', '#8fd14f', 'mcsb'], ['NIS2', '#c88bf0', 'nis2'], ['RGPD', '#f05e8c', 'rgpd']];
-const fwPanels = FW_DEF.map((d, i) => {
-  const P = makePanel(560, 820, 0.28);
-  const x = (i - 2) * 0.3;
-  P.mesh.position.set(x, 0.4, -0.42 - Math.abs(i - 2) * 0.06);
-  P.mesh.rotation.set(-0.1, -x * 0.5, 0);
+const fwPanels = FW_DEF.map(() => {
+  const P = makePanel(560, 820, 0.3);
   P.mesh.visible = false; board.add(P.mesh);
   return P;
 });
+let fwIndex = 2; // MCSB al frente por defecto
+function layoutCarousel(){
+  const N = fwPanels.length;
+  fwPanels.forEach((P, i) => {
+    let d = i - fwIndex; if (d > N / 2) d -= N; if (d < -N / 2) d += N; // distancia con envoltura
+    const ad = Math.abs(d);
+    const x = d * 0.3, y = 0.44 - ad * 0.02, z = -0.4 - ad * 0.13;
+    const s = d === 0 ? 1.18 : ad === 1 ? 0.66 : 0.46;
+    P.mesh.position.set(x, y, z);
+    P.mesh.rotation.set(-0.08, -d * 0.42, 0);
+    P.mesh.scale.setScalar(s);
+    P.mesh.material.opacity = d === 0 ? 1 : ad === 1 ? 0.78 : 0.5;
+    P.mesh.renderOrder = 10 - ad; // el de delante encima
+  });
+}
+// flechas del carrusel (3D, clicables)
+function makeArrow(txt, action, x){
+  const grp = new THREE.Group();
+  const btn = new THREE.Mesh(roundedPanel(0.07, 0.07, 0.014, 0.012), new THREE.MeshStandardMaterial({ color: 0x14243a, emissive: 0x2899f5, emissiveIntensity: 0.6 }));
+  btn.userData.action = action; grp.add(btn); pickables.push(btn);
+  const l = makeFlatLabel(txt, 0.05, { bg: null, size: 120, weight: 900, pad: 2 }); l.position.set(0, 0, 0.01); grp.add(l);
+  grp.position.set(x, 0.2, -0.33); grp.visible = false; board.add(grp);
+  return grp;
+}
+const fwArrowL = makeArrow('‹', 'fw-prev', -0.26);
+const fwArrowR = makeArrow('›', 'fw-next', 0.26);
 function drawFwPanel(P, label, accent, controls, polN){
   const { ctx, c } = P, w = c.width, h = c.height;
   ctx.clearRect(0, 0, w, h);
@@ -1394,10 +1417,12 @@ function showCockpit(it){
   const ps = it && it.kind !== 'link' ? policiesForNode(it) : [];
   const on = ps.length > 0;
   fwPanels.forEach(P => P.mesh.visible = on);
+  fwArrowL.visible = fwArrowR.visible = on;
   if (!on) return;
   const agg = f => { const s = new Set(); ps.forEach(p => (p.crosswalk && p.crosswalk[f] || []).forEach(x => s.add(x))); return [...s].sort(); };
   const mcsb = new Set(); ps.forEach(p => (p.controls || []).forEach(x => mcsb.add(x)));
   FW_DEF.forEach(([label, accent, key], i) => drawFwPanel(fwPanels[i], label, accent, key === 'mcsb' ? [...mcsb].sort() : agg(key), ps.length));
+  layoutCarousel();
 }
 
 let selected = null;
@@ -1547,6 +1572,8 @@ function doAction(a){
     case 'close-world': showWorld(false); break;
     case 'compliance': showCompliance(!compliance.mesh.visible); break;
     case 'close-compliance': showCompliance(false); break;
+    case 'fw-prev': fwIndex = (fwIndex - 1 + fwPanels.length) % fwPanels.length; layoutCarousel(); break;
+    case 'fw-next': fwIndex = (fwIndex + 1) % fwPanels.length; layoutCarousel(); break;
     case 'panels': { const v = !(summary.mesh.visible && detail.mesh.visible); summary.mesh.visible = detail.mesh.visible = v && !worldGroup.visible && !insp; setMsg(v ? 'Paneles de resumen y detalle mostrados.' : 'Paneles ocultos. Pulsa “Paneles” para traerlos de vuelta.'); break; }
     case 'reset': resetLayout(); setMsg('Maqueta restablecida a la disposición original.'); break;
   }
@@ -1868,13 +1895,15 @@ const AZ_REGIONS = {
   japaneast: ['Japan East (Tokio)', 35.68, 139.69], japanwest: ['Japan West (Osaka)', 34.69, 135.5],
   australiaeast: ['Australia East (Sídney)', -33.86, 151.21], centralindia: ['Central India (Pune)', 18.52, 73.86],
   brazilsouth: ['Brazil South (São Paulo)', -23.55, -46.63], canadacentral: ['Canada Central (Toronto)', 43.65, -79.38], canadaeast: ['Canada East (Quebec)', 46.81, -71.21],
-  uaenorth: ['UAE North (Dubái)', 25.2, 55.27], southafricanorth: ['South Africa North (Johannesburgo)', -26.2, 28.04], koreacentral: ['Korea Central (Seúl)', 37.57, 126.98]
+  uaenorth: ['UAE North (Dubái)', 25.2, 55.27], southafricanorth: ['South Africa North (Johannesburgo)', -26.2, 28.04], koreacentral: ['Korea Central (Seúl)', 37.57, 126.98],
+  mexicocentral: ['Mexico Central (Querétaro)', 20.59, -100.39], unitedstates: ['United States', 39.0, -98.0], brazilsoutheast: ['Brazil Southeast (Río)', -22.9, -43.2],
+  qatarcentral: ['Qatar Central (Doha)', 25.29, 51.53], israelcentral: ['Israel Central (Tel Aviv)', 32.08, 34.78]
 };
 if (LIVE){
   const byReg = {};
   for (const n of LIVE_NODES){ const id = String(n.region || 'unknown').toLowerCase(); (byReg[id] ||= []).push(n); }
-  WORLD.locs = Object.entries(byReg).map(([id, ns]) => {
-    const info = AZ_REGIONS[id] || [id, 0, 0];
+  WORLD.locs = Object.entries(byReg).filter(([id]) => AZ_REGIONS[id]).map(([id, ns]) => {
+    const info = AZ_REGIONS[id];
     const status = { Alta: 0, Media: 0, Baja: 0, ok: 0, none: 0 };
     for (const n of ns){ if (!n.checks.length){ status.none++; continue; } const wsv = worstSev(n); if (wsv) status[wsv]++; else status.ok++; }
     return { id, name: info[0], lat: info[1], lon: info[2], funcs: ns.length, status };
