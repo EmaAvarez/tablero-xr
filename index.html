@@ -73,7 +73,7 @@
 
 <div id="hud" class="card">
   <h1>Mapa de red holográfico · Defender for Cloud</h1>
-  <div class="sub">Prototipo v0.56 · <b>datos de ejemplo ficticios</b> · botón verde: tus 5 recursos del lab · botón azul: leer tu Azure EN VIVO con un token. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
+  <div class="sub">Prototipo v0.57 · <b>datos de ejemplo ficticios</b> · botón verde: tus 5 recursos del lab · botón azul: leer tu Azure EN VIVO con un token. Arrastra para girar, rueda para acercar. Haz clic en un recurso <b>o en un cable</b> para ver qué está bien, qué falla y cómo se corrige. Los botones del borde de la mesa sirven para editar la maqueta.</div>
   <button id="cat" style="width:100%;padding:9px;border-radius:14px;border:1px solid #2899f5;background:transparent;color:#6cb8f6;font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px">Ver catálogo de modelos 3D</button>
   <div id="pages" style="display:none;gap:6px;margin-bottom:8px"><button data-p="res">Recursos</button><button data-p="zon">Zonas</button><button data-p="via">Vías y controles</button></div>
   <button id="xr" disabled>Comprobando realidad mixta…</button>
@@ -512,8 +512,36 @@ const PRESETS = {
 const STATUS_NAMES = [['Alta', 'Fallo alta'], ['Media', 'Fallo media'], ['Baja', 'Fallo baja'], ['ok', 'Correcto'], ['ext', 'Externo']];
 const TYPE_NAMES = [['vm', 'Máquina virtual'], ['vmss', 'VMSS'], ['aks', 'AKS'], ['functions', 'Functions'], ['webapp', 'App Service'], ['sqlserver', 'SQL Server'], ['sqldb', 'Base de datos SQL'], ['cosmos', 'Cosmos DB'], ['storage', 'Almacenamiento'], ['keyvault', 'Key Vault'], ['loganalytics', 'Log Analytics'], ['subscription', 'Identidad'], ['vpngw', 'VPN Gateway'], ['lb', 'Load Balancer'], ['natgw', 'NAT Gateway'], ['pip', 'IP pública'], ['pe', 'Private Endpoint'], ['nsg', 'NSG'], ['firewall', 'Firewall'], ['appgw', 'App Gateway + WAF'], ['bastion', 'Bastion']];
 const hex6 = n => '#' + n.toString(16).padStart(6, '0');
+/* en LIVE los recursos salen "sin evaluar" (no hay Defender), así que el color no puede ser "estado":
+   lo usamos para algo REAL y útil -> por TIPO de recurso o por GRUPO de recursos (RG). */
+let liveColorMode = 'type'; // 'type' | 'rg'
+function typeHex(type){ const v = TYPE_COL[type] != null ? TYPE_COL[type] : TYPE_COL.generic; return hex6(v); }
+function rgHue(rg){ let n = 0; const s = String(rg || ''); for (let i = 0; i < s.length; i++) n = (n * 31 + s.charCodeAt(i)) >>> 0; const col = new THREE.Color(); col.setHSL((n % 360) / 360, 0.55, 0.6); return '#' + col.getHexString(); }
+function liveStatusHex(item){
+  if (item.statusOverride) return item.statusOverride;
+  if (item.checks && item.checks.length) return statusColor(item);
+  if (!LIVE) return statusColor(item);
+  return liveColorMode === 'rg' ? rgHue(item.group || item.region) : typeHex(item.type);
+}
+function recolorLive(){
+  for (const r of nodeRecs){ const c = new THREE.Color(liveStatusHex(r.item)); if (r.orb) r.orb.material.color.copy(c); if (r.orbRing) r.orbRing.material.color.copy(c); if (r.glow) r.glow.material.color.copy(c); }
+  renderLegend();
+}
 function renderLegend(){
-  document.querySelector('.legend').innerHTML = STATUS_NAMES.map(([k, n]) => `<span><span class="dot" style="background:${COL[k]}"></span>${n}</span>`).join('') + '<button id="palBtn" class="palbtn">🎨 Personalizar</button>';
+  const leg = document.querySelector('.legend'); if (!leg) return;
+  if (LIVE){
+    if (liveColorMode === 'rg'){
+      const rgs = [...new Set(nodeRecs.map(r => r.item.group || r.item.region).filter(Boolean))].slice(0, 8);
+      leg.innerHTML = '<span style="opacity:.8">Color = grupo de recursos ·</span>' + rgs.map(g => `<span><span class="dot" style="background:${rgHue(g)}"></span>${esc(String(g).slice(0, 18))}</span>`).join('') + '<button id="palBtn" class="palbtn">🎨 Por tipo/grupo</button>';
+    } else {
+      const seen = [...new Set(nodeRecs.map(r => r.item.type))];
+      const items = TYPE_NAMES.filter(([k]) => seen.includes(k)).slice(0, 9);
+      leg.innerHTML = '<span style="opacity:.8">Color = tipo de recurso ·</span>' + items.map(([k, n]) => `<span><span class="dot" style="background:${typeHex(k)}"></span>${n}</span>`).join('') + '<span style="opacity:.7">· franja roja = sin evaluar (no Defender)</span>' + '<button id="palBtn" class="palbtn">🎨 Por tipo/grupo</button>';
+    }
+    document.getElementById('palBtn').addEventListener('click', () => doAction('colors'));
+    return;
+  }
+  leg.innerHTML = STATUS_NAMES.map(([k, n]) => `<span><span class="dot" style="background:${COL[k]}"></span>${n}</span>`).join('') + '<button id="palBtn" class="palbtn">🎨 Personalizar</button>';
   document.getElementById('palBtn').addEventListener('click', openPalette);
 }
 function openPalette(){
@@ -808,7 +836,7 @@ function buildModel(type, hex){
 }
 
 function addNode(item){
-  const statusHex = item.statusOverride || statusColor(item), col = new THREE.Color(statusHex);
+  const statusHex = liveStatusHex(item), col = new THREE.Color(statusHex);
   const grp = new THREE.Group(); grp.position.set(item.pos[0], 0, item.pos[1]); T.add(grp);
   const { g, h, shells, accents } = buildModel(item.type, statusHex); grp.add(g);
   const glow = new THREE.Mesh(new THREE.RingGeometry(0.028, 0.036, 44), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.72, side: THREE.DoubleSide, depthWrite: false }));
@@ -835,6 +863,7 @@ function addNode(item){
   return rec;
 }
 (LIVE ? LIVE_NODES : REAL ? REAL_NODES : NODES).forEach(addNode);
+renderLegend();
 
 
 /* cables */
@@ -1135,11 +1164,11 @@ function panelFrame(ctx, w, h, title){
 }
 
 /* botón azul "✖ Cerrar" bajo el panel, mismo modelo que el inspector; funciona en escritorio y XR */
-function addCloseButton(parent, wM, hM, action, isInsp){
-  const bw = clamp(wM * 0.42, 0.1, 0.14), bh = 0.03, y = -hM / 2 - bh / 2 - 0.012;
-  const btn = new THREE.Mesh(roundedPanel(bw, bh, 0.008, 0.009), new THREE.MeshStandardMaterial({ color: 0x0f2a47, emissive: 0x0078d4, emissiveIntensity: 0.5 }));
+function addCloseButton(parent, wM, hM, action, isInsp, big){
+  const bw = big ? clamp(wM * 0.6, 0.14, 0.22) : clamp(wM * 0.42, 0.1, 0.14), bh = big ? 0.044 : 0.032, y = -hM / 2 - bh / 2 - 0.012;
+  const btn = new THREE.Mesh(roundedPanel(bw, bh, 0.009, 0.01), new THREE.MeshStandardMaterial({ color: 0x0f2a47, emissive: 0x0078d4, emissiveIntensity: 0.6 }));
   btn.position.set(0, y, 0.004); btn.userData.action = action; if (isInsp) btn.userData.insp = true; parent.add(btn); pickables.push(btn);
-  const l = makeFlatLabel('✖ Cerrar', 0.017, { bg: null, size: 44, weight: 800, pad: 6 }); l.rotation.x = 0; l.position.set(0, y, 0.0095); parent.add(l);
+  const l = makeFlatLabel('✖ Cerrar', big ? 0.024 : 0.018, { bg: null, size: 48, weight: 800, pad: 6 }); l.rotation.x = 0; l.position.set(0, y, 0.0095); parent.add(l);
   return btn;
 }
 
@@ -1285,7 +1314,7 @@ function drawDetail(it){
 
 /* ===================== cockpit de cumplimiento (bóveda MCSB → policies.json) ===================== */
 let POLICIES = [];
-fetch('policies.json').then(r => r.ok ? r.json() : []).then(d => { POLICIES = d || []; if (selected && selected.kind === 'node') renderDetailHTML(selected.item); }).catch(() => {});
+fetch('policies.json').then(r => r.ok ? r.json() : []).then(d => { POLICIES = d || []; if (selected && selected.kind === 'node') renderDetailHTML(selected.item); if (typeof compliance !== 'undefined' && compliance.mesh.visible) drawCompliance(); }).catch(() => {});
 const NET = ['Virtual Network', 'Network Security Group', 'Network Watcher', 'Firewall', 'VPN Gateway'];
 const SERVICE_MAP = {
   vm: ['Virtual Machines'], vmss: ['Virtual Machines'], sqlserver: ['SQL'], sqldb: ['SQL'], storage: ['Storage'],
@@ -1402,14 +1431,19 @@ function layoutCarousel(){
 // flechas (3D, clicables) para cambiar de marco — debajo del panel, dentro del grupo
 function makeArrow(txt, action, x){
   const grp = new THREE.Group();
-  const btn = new THREE.Mesh(roundedPanel(0.075, 0.075, 0.015, 0.012), new THREE.MeshStandardMaterial({ color: 0x14243a, emissive: 0x2899f5, emissiveIntensity: 0.7 }));
-  btn.userData.action = action; grp.add(btn); pickables.push(btn);
-  const l = makeFlatLabel(txt, 0.055, { bg: null, size: 130, weight: 900, pad: 2 }); l.position.set(0, 0, 0.01); grp.add(l);
-  grp.position.set(x, -0.28, 0.02); grp.visible = false; fwGroup.add(grp);
+  // zona de toque circular casi invisible (sin botón cuadrado)
+  const hit = new THREE.Mesh(new THREE.CircleGeometry(0.052, 32), new THREE.MeshBasicMaterial({ color: 0x0a1726, transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false }));
+  hit.userData.action = action; grp.add(hit); pickables.push(hit);
+  // aro fino: look de flecha flotante
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.046, 0.054, 40), new THREE.MeshBasicMaterial({ color: 0x3aa0ff, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false }));
+  ring.position.z = 0.001; grp.add(ring);
+  // chevron (ángulo 90°) que SIEMPRE mira al usuario
+  const l = makeLabel(txt, 0.07, { bg: null, size: 160, weight: 900, pad: 2, color: '#cfe8ff' }); l.position.set(0, 0, 0.006); grp.add(l);
+  grp.position.set(x, 0, 0.03); grp.visible = false; fwGroup.add(grp);
   return grp;
 }
-const fwArrowL = makeArrow('‹', 'fw-prev', -0.26);
-const fwArrowR = makeArrow('›', 'fw-next', 0.26);
+const fwArrowL = makeArrow('‹', 'fw-prev', -0.225);
+const fwArrowR = makeArrow('›', 'fw-next', 0.225);
 function fwPoliciesFor(ps, key){ return key === 'mcsb' ? ps.slice() : ps.filter(p => p.crosswalk && p.crosswalk[key] && p.crosswalk[key].length); }
 function ctrlTag(p, key){ return key === 'mcsb' ? (p.controls || []).join(', ') : (p.crosswalk[key] || []).slice(0, 3).join(', '); }
 function drawFwPanel(P){
@@ -1419,21 +1453,21 @@ function drawFwPanel(P){
   ctx.lineWidth = 5; ctx.strokeStyle = accent; rr(ctx, 4, 4, w - 8, h - 8, 22); ctx.stroke();
   ctx.fillStyle = accent; ctx.font = '700 44px "Segoe UI", Arial'; ctx.fillText(P.label, 28, 66);
   ctx.fillStyle = '#c8c6c4'; ctx.font = '400 25px "Segoe UI", Arial'; ctx.fillText(pols.length + ' políticas · toca una para ver la solución', 28, 104);
-  const top = 134, rowH = 96, visN = Math.max(1, Math.floor((h - top - 20) / rowH));
+  const top = 134, rowH = 112, visN = Math.max(1, Math.floor((h - top - 20) / rowH));
   P.rowH = rowH; P.top = top; P.visN = visN; P.rows = [];
   const scroll = Math.min(P.scroll || 0, Math.max(0, pols.length - visN));
   P.scroll = scroll;
   if (!pols.length){ ctx.fillStyle = '#8a9099'; ctx.font = '400 28px "Segoe UI", Arial'; wrap(ctx, 'Este recurso no mapea a controles de ' + P.label + '.', w - 60).forEach((l, i) => ctx.fillText(l, 28, top + 20 + i * 36)); P.tex.needsUpdate = true; return; }
   for (let i = 0; i < visN; i++){
     const idx = scroll + i; if (idx >= pols.length) break;
-    const p = pols[idx], y = top + i * rowH, open = idx === P.open;
-    rr(ctx, 18, y, w - 36, rowH - 10, 12); ctx.fillStyle = open ? '#20331a' : '#191d24'; ctx.fill();
-    if (open){ ctx.lineWidth = 3; ctx.strokeStyle = accent; rr(ctx, 18, y, w - 36, rowH - 10, 12); ctx.stroke(); }
-    ctx.fillStyle = accent; ctx.font = '700 23px "Segoe UI", Arial'; ctx.fillText(ctrlTag(p, P.key) || '—', 34, y + 32);
-    if (p.quick_win === 'true'){ ctx.fillStyle = '#ffd04a'; ctx.font = '700 23px "Segoe UI", Arial'; ctx.fillText('⭐', w - 60, y + 32); }
+    const p = pols[idx], y = top + i * rowH, open = idx === P.open, bh = rowH - 14;
+    rr(ctx, 18, y + 2, w - 36, bh, 14); ctx.fillStyle = open ? '#20331a' : '#191d24'; ctx.fill();
+    if (open){ ctx.lineWidth = 4; ctx.strokeStyle = accent; rr(ctx, 18, y + 2, w - 36, bh, 14); ctx.stroke(); }
+    ctx.fillStyle = accent; ctx.font = '700 23px "Segoe UI", Arial'; ctx.fillText(ctrlTag(p, P.key) || '—', 36, y + 38);
+    if (p.quick_win === 'true'){ ctx.fillStyle = '#ffd04a'; ctx.font = '700 23px "Segoe UI", Arial'; ctx.fillText('⭐', w - 62, y + 38); }
     ctx.fillStyle = '#e9eaec'; ctx.font = '400 25px "Segoe UI", Arial';
-    wrap(ctx, p.name || p.ref, w - 76).slice(0, 2).forEach((l, li) => ctx.fillText(l, 34, y + 62 + li * 28));
-    P.rows.push({ idx, y0: y, y1: y + rowH - 6 });
+    wrap(ctx, p.name || p.ref, w - 80).slice(0, 2).forEach((l, li) => ctx.fillText(l, 36, y + 70 + li * 28));
+    P.rows.push({ idx, y0: y, y1: y + rowH - 10 });
   }
   if (scroll > 0){ ctx.fillStyle = accent; ctx.font = '700 30px "Segoe UI", Arial'; ctx.textAlign = 'center'; ctx.fillText('▲ arriba', w / 2, 126); ctx.textAlign = 'left'; }
   if (scroll + visN < pols.length){ ctx.fillStyle = accent; ctx.font = '700 30px "Segoe UI", Arial'; ctx.textAlign = 'center'; ctx.fillText('▼ más (' + (pols.length - scroll - visN) + ')', w / 2, h - 16); ctx.textAlign = 'left'; }
@@ -1442,16 +1476,39 @@ function drawFwPanel(P){
 // panel de remediación (al tocar una política)
 const remPanel = makePanel(640, 920, 0.38);
 remPanel.mesh.position.set(0.46, 0, 0.01); remPanel.mesh.userData.rempanel = true; remPanel.mesh.visible = false; fwGroup.add(remPanel.mesh); pickables.push(remPanel.mesh);
-addCloseButton(remPanel.mesh, 0.38, 0.38 * 920 / 640, 'close-rem');
+addCloseButton(remPanel.mesh, 0.38, 0.38 * 920 / 640, 'close-rem', false, true);
 function codeBlock(ctx, label, txt, x, y, w, accent){
   if (!txt) return y;
-  ctx.fillStyle = accent; ctx.font = '700 22px "Segoe UI", Arial'; ctx.fillText(label, x, y); y += 30;
+  ctx.fillStyle = accent; ctx.font = '700 22px "Segoe UI", Arial'; ctx.fillText(label, x, y);
+  // chip "Copiar" a la derecha del título del bloque
+  const cw = 104, ch = 30, cx = x + w - cw, cy = y - 23;
+  rr(ctx, cx, cy, cw, ch, 9); ctx.fillStyle = '#143a24'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#3ddc84'; ctx.stroke();
+  ctx.fillStyle = '#9af5c0'; ctx.font = '700 18px "Segoe UI", Arial'; ctx.fillText('📋 Copiar', cx + 12, y - 2);
+  (remPanel.copyBtns || (remPanel.copyBtns = [])).push({ x0: cx, y0: cy, x1: cx + cw, y1: cy + ch, txt });
+  y += 30;
   ctx.font = '400 19px "Consolas", monospace'; ctx.fillStyle = '#b9d0e8';
   for (const raw of txt.split('\n')){ for (const l of wrap(ctx, raw || ' ', w)){ ctx.fillText(l, x, y); y += 24; if (y > remPanel.c.height - 30) return y; } }
   return y + 10;
 }
+function copyText(txt){
+  if (!txt) return;
+  const done = () => setMsg('✓ Comando copiado. Pégalo (Ctrl/Cmd+V) en el navegador o la terminal — si estás en gafas, al salir de la vista inmersiva.');
+  try { if (navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done, () => fallbackCopy(txt, done)); return; } } catch (e) {}
+  fallbackCopy(txt, done);
+}
+function fallbackCopy(txt, done){
+  try { const ta = document.createElement('textarea'); ta.value = txt; ta.style.cssText = 'position:fixed;opacity:0;left:-9999px'; document.body.appendChild(ta); ta.focus(); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); done && done(); }
+  catch (e){ setMsg('No pude copiar automáticamente en esta vista. El comando está en el panel para copiarlo a mano.'); }
+}
+function remPanelTap(uv){
+  const x = uv.x * remPanel.c.width, y = (1 - uv.y) * remPanel.c.height;
+  const b = (remPanel.copyBtns || []).find(r => x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1);
+  if (b){ copyText(b.txt); return true; }
+  return false;
+}
 function drawRem(p){
   const { ctx, c } = remPanel, w = c.width, h = c.height;
+  remPanel.copyBtns = [];
   ctx.clearRect(0, 0, w, h);
   rr(ctx, 4, 4, w - 8, h - 8, 22); ctx.fillStyle = 'rgba(11,13,17,0.97)'; ctx.fill();
   ctx.lineWidth = 5; ctx.strokeStyle = '#2e8b3a'; rr(ctx, 4, 4, w - 8, h - 8, 22); ctx.stroke();
@@ -1538,7 +1595,7 @@ canvas.addEventListener('pointerup', e => {
   if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5) return;
   mouse.x = (e.clientX / innerWidth) * 2 - 1; mouse.y = -(e.clientY / innerHeight) * 2 + 1;
   raycaster.setFromCamera(mouse, camera); const hit = pickFrom(raycaster);
-  if (hit){ if (hit.object.userData.fwpanel && hit.uv) fwPanelTap(hit.object, hit.uv); else handlePick(hit.object); }
+  if (hit){ if (hit.object.userData.fwpanel && hit.uv) fwPanelTap(hit.object, hit.uv); else if (hit.object.userData.rempanel && hit.uv) remPanelTap(hit.uv); else handlePick(hit.object); }
 });
 /* prioriza nodos sobre cables cuando ambos están bajo el puntero */
 function shown(o){ while (o){ if (o.visible === false) return false; o = o.parent; } return true; }
@@ -1619,6 +1676,7 @@ function doAction(a){
     case 'mplus': setBoardScale(boardScale * 1.15); break;
     case 'mminus': setBoardScale(boardScale / 1.15); break;
     case 'colors':
+      if (LIVE){ liveColorMode = liveColorMode === 'type' ? 'rg' : 'type'; recolorLive(); setMsg(liveColorMode === 'type' ? 'Color por TIPO de recurso (SQL, Storage, Key Vault, App Service…). La franja roja marca “sin evaluar”.' : 'Color por GRUPO de recursos (RG): mismo color = mismo grupo, para reconocer a qué proyecto pertenece cada recurso.'); break; }
       if (!renderer.xr.isPresenting){ openPalette(); break; }
       { const names = Object.keys(PRESETS); paletteIdx = (paletteIdx + 1) % names.length; applyPreset(names[paletteIdx]); }
       break;
@@ -1891,7 +1949,7 @@ function rayFrom(ctrl){
 function onSelectXR(ctrl){
   if (ctrl.userData.grab) return;
   if (placing){ if (board.visible){ placing = false; placeHint.visible = false; placedAt = 0; } return; }
-  const hit = rayFrom(ctrl); if (hit){ if (hit.object.userData.fwpanel && hit.uv) fwPanelTap(hit.object, hit.uv); else handlePick(hit.object); }
+  const hit = rayFrom(ctrl); if (hit){ if (hit.object.userData.fwpanel && hit.uv) fwPanelTap(hit.object, hit.uv); else if (hit.object.userData.rempanel && hit.uv) remPanelTap(hit.uv); else handlePick(hit.object); }
 }
 const camPos = new THREE.Vector3(), camDir = new THREE.Vector3();
 function faceUser(){
@@ -2140,20 +2198,27 @@ function animateWorld(s){
   for (const m of worldMarkers){ const k = 1 + 0.18 * Math.sin(s * 2.2 + m.phase); m.glow.scale.setScalar((0.04 + 0.075 * m.f) * k); m.ring.scale.setScalar(k); m.ring.material.opacity = 0.5 + 0.4 * Math.sin(s * 2.2 + m.phase); }
   for (const L of worldLinks) for (const p of L.pulses) p.m.position.copy(L.curve.getPoint((s * 0.18 + p.off) % 1));
   /* el cartel de info de la ubicación mira siempre a las gafas, esté donde esté el globo */
-  { // billboard SOLO horizontal (yaw): las pantallas encaran al usuario pero quedan rectas, sin inclinarse
-    const camW = (renderer.xr.isPresenting ? renderer.xr.getCamera() : camera).getWorldPosition(new THREE.Vector3());
-    const invP = board.getWorldQuaternion(new THREE.Quaternion()).invert();
-    const yawTo = obj => { const w = obj.getWorldPosition(new THREE.Vector3()); const yaw = Math.atan2(camW.x - w.x, camW.z - w.z); const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, 0)); obj.quaternion.copy(invP.clone().multiply(q)); };
-    if (cockpitShown) yawTo(fwGroup);
-    if (summary.mesh.visible) yawTo(summary.mesh);
-    if (detail.mesh.visible) yawTo(detail.mesh);
-    if (compliance.mesh.visible) yawTo(compliance.mesh);
-    if (insp && !insp.free){ const w = inspector.getWorldPosition(new THREE.Vector3()); const yaw = Math.atan2(camW.x - w.x, camW.z - w.z); inspector.quaternion.setFromEuler(new THREE.Euler(0, yaw, 0)); }
-  }
-  if (locPanel.mesh.visible){
-    const camQ = camera.getWorldQuaternion(new THREE.Quaternion());
-    const invP = worldGroup.getWorldQuaternion(new THREE.Quaternion()).invert();
-    locPanel.mesh.quaternion.copy(invP.multiply(camQ));
+}
+/* billboard SOLO horizontal (yaw) para TODOS los carteles flotantes: encaran al usuario pero quedan
+   rectos, sin inclinarse ni rodar al mover/torcer la cabeza. Corre SIEMPRE, no solo con el globo. */
+function billboardPanels(){
+  const camW = (renderer.xr.isPresenting ? renderer.xr.getCamera() : camera).getWorldPosition(new THREE.Vector3());
+  const yawFor = (obj, parent) => {
+    const w = obj.getWorldPosition(new THREE.Vector3());
+    const yaw = Math.atan2(camW.x - w.x, camW.z - w.z);
+    const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, 0));
+    const invP = (parent || obj.parent).getWorldQuaternion(new THREE.Quaternion()).invert();
+    obj.quaternion.copy(invP.multiply(q));
+  };
+  if (cockpitShown) yawFor(fwGroup, board);
+  if (summary.mesh.visible) yawFor(summary.mesh, board);
+  if (detail.mesh.visible) yawFor(detail.mesh, board);
+  if (compliance.mesh.visible) yawFor(compliance.mesh, board);
+  if (locPanel.mesh.visible) yawFor(locPanel.mesh, worldGroup);
+  if (insp && !insp.free){
+    const w = inspector.getWorldPosition(new THREE.Vector3());
+    const yaw = Math.atan2(camW.x - w.x, camW.z - w.z);
+    inspector.quaternion.setFromEuler(new THREE.Euler(0, yaw, 0));
   }
 }
 /* botón HUD */
@@ -2163,47 +2228,54 @@ worldBtn.style.cssText = 'width:100%;padding:9px;border-radius:14px;border:1px s
 document.getElementById('cat').after(worldBtn);
 worldBtn.addEventListener('click', () => showWorld(!worldGroup.visible));
 
-/* ===================== panel de Cumplimiento · MCSB real (exportado de Defender) ===================== */
-const MCSB_REAL = {
-  source: 'DEMO · export del lab TryHackMe (NO es tu tenant TCM)',
-  controls: 85, compatible: 85, polTotal: 298, notMeasured: 43,
-  fam: [
-    ['AM', 'Asset Management', 5, 5, 4], ['BR', 'Backup & Recovery', 4, 4, 8],
-    ['DP', 'Data Protection', 8, 8, 50], ['DS', 'DevOps Security', 7, 7, 2],
-    ['ES', 'Endpoint Security', 3, 3, 2], ['GS', 'Governance & Strategy', 10, 10, 0],
-    ['IM', 'Identity Management', 9, 9, 25], ['IR', 'Incident Response', 7, 7, 38],
-    ['LT', 'Logging & Threat Detection', 7, 7, 56], ['NS', 'Network Security', 10, 10, 52],
-    ['PA', 'Privileged Access', 8, 8, 14], ['PV', 'Posture & Vuln. Mgmt', 7, 7, 47]
-  ]
-};
-const compliance = makePanel(1024, 1180, 0.56);
+/* ===================== panel de Cumplimiento · MCSB (datos reales del tenant TCM) ===================== */
+// 12 dominios de control de MCSB (reales). La cobertura se calcula desde POLICIES (catálogo de remediación de la bóveda).
+const MCSB_FAMS = [
+  ['NS', 'Network Security'], ['IM', 'Identity Management'], ['PA', 'Privileged Access'],
+  ['DP', 'Data Protection'], ['AM', 'Asset Management'], ['LT', 'Logging & Threat Detection'],
+  ['IR', 'Incident Response'], ['PV', 'Posture & Vuln. Mgmt'], ['ES', 'Endpoint Security'],
+  ['BR', 'Backup & Recovery'], ['DS', 'DevOps Security'], ['GS', 'Governance & Strategy']
+];
+function famPolCount(prefix){ return POLICIES.filter(p => (p.controls || []).some(c => String(c).toUpperCase().startsWith(prefix + '-'))).length; }
+const compliance = makePanel(1024, 1240, 0.56);
 compliance.mesh.visible = false; compliance.mesh.position.set(0.0, 0.46, -0.46); compliance.mesh.userData.movePanel = true; pickables.push(compliance.mesh); board.add(compliance.mesh);
-addCloseButton(compliance.mesh, 0.56, 0.56 * 1180 / 1024, 'close-compliance');
+addCloseButton(compliance.mesh, 0.56, 0.56 * 1240 / 1024, 'close-compliance', false, true);
 function drawCompliance(){
   const { ctx, c } = compliance; const w = c.width, h = c.height;
-  panelFrame(ctx, w, h, 'Cumplimiento · MCSB (Defender)');
-  ctx.fillStyle = '#c8c6c4'; ctx.font = '400 24px "Segoe UI", Arial'; ctx.fillText(MCSB_REAL.source, 40, 108);
-  ctx.fillStyle = COL.ok; ctx.font = '700 46px "Segoe UI", Arial'; ctx.fillText(MCSB_REAL.compatible + '/' + MCSB_REAL.controls, 40, 172);
-  ctx.fillStyle = '#e1dfdd'; ctx.font = '400 26px "Segoe UI", Arial'; ctx.fillText('controles compatibles', 190, 172);
-  ctx.fillStyle = '#3a2d10'; rr(ctx, 40, 198, w - 80, 108, 14); ctx.fill();
-  ctx.fillStyle = '#ffb900'; ctx.font = '700 23px "Segoe UI", Arial'; ctx.fillText('⚠ Verde engañoso (lectura de DPO):', 62, 236);
-  ctx.fillStyle = '#e1dfdd'; ctx.font = '400 21px "Segoe UI", Arial';
-  ctx.fillText(MCSB_REAL.notMeasured + ' de ' + MCSB_REAL.controls + ' controles tienen 0 directivas (no medidos); el resto cumple', 62, 266);
-  ctx.fillText('porque el tenant casi no tiene recursos. En auditoría: observación por', 62, 292);
-  ctx.fillText('falta de cobertura, no conformidad real.', 62, 318);
-  let y = 372; const bw = 330, bx = 440;
-  for (const [id, name, ctrl, ok, pol] of MCSB_REAL.fam){
-    const measured = pol > 0;
-    ctx.fillStyle = measured ? COL.ok : '#8a9099'; ctx.beginPath(); ctx.arc(60, y - 7, 9, 0, 7); ctx.fill();
-    ctx.fillStyle = '#ffffff'; ctx.font = '700 22px "Segoe UI", Arial'; ctx.fillText(id, 82, y);
-    ctx.fillStyle = '#e1dfdd'; ctx.font = '400 22px "Segoe UI", Arial'; ctx.fillText(name, 130, y);
-    rr(ctx, bx, y - 18, bw, 20, 10); ctx.fillStyle = '#3b3a39'; ctx.fill();
-    rr(ctx, bx, y - 18, bw * (ok / ctrl), 20, 10); ctx.fillStyle = measured ? COL.ok : '#5a6470'; ctx.fill();
-    ctx.fillStyle = '#c8c6c4'; ctx.font = '400 20px "Segoe UI", Arial'; ctx.textAlign = 'right';
-    ctx.fillText(ok + '/' + ctrl + '  ·  ' + (measured ? pol + ' dir.' : 'sin medir'), w - 40, y); ctx.textAlign = 'left';
-    y += 46;
+  const fw = (LIVE_DATA && LIVE_DATA.assigned && LIVE_DATA.assigned.frameworks) || [];
+  const nRes = (LIVE_DATA && LIVE_DATA.nodes && LIVE_DATA.nodes.length) || 0;
+  panelFrame(ctx, w, h, 'Cumplimiento MCSB · tenant TCM');
+  ctx.fillStyle = '#c8c6c4'; ctx.font = '400 24px "Segoe UI", Arial';
+  ctx.fillText(LIVE ? ('Tenant TCM · ' + nRes + ' recursos · sin Microsoft Defender for Cloud') : 'Carga tu tenant real para ver este panel con tus datos', 40, 108);
+  // bloque honesto: no hay estado de cumplimiento por recurso
+  ctx.fillStyle = '#3a1d1d'; rr(ctx, 40, 132, w - 80, 128, 14); ctx.fill(); ctx.strokeStyle = '#d13438'; ctx.lineWidth = 3; rr(ctx, 40, 132, w - 80, 128, 14); ctx.stroke();
+  ctx.fillStyle = '#ff8a8a'; ctx.font = '700 25px "Segoe UI", Arial'; ctx.fillText('Estado de cumplimiento por control: NO DISPONIBLE', 62, 172);
+  ctx.fillStyle = '#e8d6d6'; ctx.font = '400 21px "Segoe UI", Arial';
+  ctx.fillText('Tu tenant no expone estados de Azure Policy ni tiene Defender for Cloud, así que', 62, 204);
+  ctx.fillText('no se puede calcular un % de cumplimiento real. Cualquier “todo verde / 85 de 85”', 62, 230);
+  ctx.fillText('sería inventado. Lo real que sí tenemos está debajo.', 62, 256);
+  // marcos realmente asignados
+  let y = 312; ctx.fillStyle = COL.ok; ctx.font = '700 25px "Segoe UI", Arial'; ctx.fillText('✓ Marcos asignados (enforced) en tu tenant — REAL', 40, y); y += 36;
+  ctx.font = '400 22px "Segoe UI", Arial';
+  if (fw.length){ for (let i = 0; i < fw.length; i += 2){ ctx.fillStyle = '#8fd14f'; ctx.fillText('• ' + fw[i], 56, y); if (fw[i + 1]) ctx.fillText('• ' + fw[i + 1], w / 2 + 20, y); y += 32; } }
+  else { ctx.fillStyle = '#8a9099'; ctx.fillText('— (carga el tenant real)', 56, y); y += 32; }
+  // cómo obtener el % real
+  y += 8; ctx.fillStyle = '#2a2f36'; ctx.beginPath(); ctx.moveTo(40, y); ctx.lineTo(w - 40, y); ctx.stroke(); y += 34;
+  ctx.fillStyle = '#ffd04a'; ctx.font = '700 23px "Segoe UI", Arial'; ctx.fillText('Para números reales de cumplimiento, exporta los estados:', 40, y); y += 32;
+  ctx.font = '400 19px "Consolas", monospace'; ctx.fillStyle = '#b9d0e8';
+  ['az policy state summarize --subscription <sub>', 'Portal → Microsoft Defender for Cloud → Regulatory compliance', '…o habilita Defender for Cloud y lo cargo aquí como estado real'].forEach(l => { ctx.fillText(l, 56, y); y += 27; });
+  // catálogo de remediación real (de la bóveda)
+  y += 14; ctx.fillStyle = '#6cb8f6'; ctx.font = '700 23px "Segoe UI", Arial'; ctx.fillText('Catálogo de remediación disponible (MCSB · ' + POLICIES.length + ' políticas)', 40, y); y += 14;
+  const colW = (w - 80) / 3; let col = 0, ry = y + 20;
+  for (const [id, name] of MCSB_FAMS){
+    const n = famPolCount(id), x = 40 + col * colW;
+    ctx.fillStyle = n ? '#8fd14f' : '#5a6470'; ctx.beginPath(); ctx.arc(x + 8, ry - 7, 7, 0, 7); ctx.fill();
+    ctx.fillStyle = '#e1dfdd'; ctx.font = '700 19px "Segoe UI", Arial'; ctx.fillText(id, x + 24, ry);
+    ctx.fillStyle = '#c8c6c4'; ctx.font = '400 17px "Segoe UI", Arial'; ctx.fillText(n + ' pol.', x + 60, ry);
+    col++; if (col === 3){ col = 0; ry += 34; }
   }
-  ctx.fillStyle = '#8fd14f'; ctx.font = '600 22px "Segoe UI", Arial'; ctx.fillText('Datos reales de tu Defender · ' + MCSB_REAL.polTotal + ' directivas evaluadas', 40, h - 30);
+  if (col) ry += 34;
+  ctx.fillStyle = '#8a9099'; ctx.font = '400 19px "Segoe UI", Arial'; ctx.fillText('Toca un recurso en la mesa → ves qué políticas MCSB le aplican y cómo remediarlo.', 40, ry + 14);
   compliance.tex.needsUpdate = true;
 }
 function showCompliance(on){
@@ -2227,6 +2299,7 @@ renderer.setAnimationLoop((t, frame) => {
   const xrOn = renderer.xr.isPresenting;
   scan.position.z = -D / 2 + ((s * 0.1) % 1) * D;
   if (worldGroup.visible) animateWorld(s);
+  billboardPanels();
   if (catalog.visible) for (const d of roadDots) d.m.position.set(d.x0 + ((s * d.speed + d.off) % 1) * (d.x1 - d.x0), d.y, d.z);
   if (insp && insp.auto) insp.spinner.rotation.y += 0.006;
   if (selRing.visible) selRing.material.opacity = 0.55 + 0.4 * Math.sin(s * 3);
@@ -2249,7 +2322,9 @@ renderer.setAnimationLoop((t, frame) => {
       const gp = ctrl.userData.src && ctrl.userData.src.gamepad;
       if (gp && gp.axes.length >= 4 && Math.abs(gp.axes[3]) > 0.4){
         const f = 1 - gp.axes[3] * 0.012;
-        if (insp) inspector.scale.setScalar(clamp(inspector.scale.x * f, 0.4, 2.6)); else if (globeFloat) worldGroup.scale.setScalar(clamp(worldGroup.scale.x * f, 0.4, 2.2)); else if (editMode && selected && selected.kind === 'node') scaleNode(selected, f); else setBoardScale(boardScale * f);
+        const gpan = ctrl.userData.sq;
+        if (gpan && gpan.mode === 'panel'){ gpan.target.scale.setScalar(clamp(gpan.target.scale.x * f, 0.45, 2.6)); }
+        else if (insp) inspector.scale.setScalar(clamp(inspector.scale.x * f, 0.4, 2.6)); else if (globeFloat) worldGroup.scale.setScalar(clamp(worldGroup.scale.x * f, 0.4, 2.2)); else if (editMode && selected && selected.kind === 'node') scaleNode(selected, f); else setBoardScale(boardScale * f);
       }
       if (gp && gp.axes.length >= 4 && Math.abs(gp.axes[2]) > 0.4){
         const da = -gp.axes[2] * 0.05;
